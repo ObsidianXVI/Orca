@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:orca/orca.dart' as orca;
@@ -17,8 +18,14 @@ final Map<String, dynamic> configsJson = {
   ]
 };
 
-void main(List<String> arguments) {
-  OrcaCLI.commandRunner.run(arguments);
+void main(List<String> _) {
+  stdin
+      .transform(utf8.decoder)
+      .transform(const LineSplitter())
+      .listen((String line) {
+    if (line.trim() == 'exit') exit(0);
+    OrcaCLI.commandRunner.run(line.split(' '));
+  });
 }
 
 class OrcaCLI {
@@ -49,9 +56,9 @@ class OrcaServeCommand extends Command {
 
   @override
   FutureOr? run() async {
-    orca.OrcaServer.init(orca.OrcaConfigs.fromJson(configsJson));
-    if (argResults!.wasParsed('name')) {
-      orca.OrcaServer.serveApp(argResults!.options.first);
+    await orca.OrcaServer.init(orca.OrcaConfigs.fromJson(configsJson));
+    if (argResults!['name'] != null) {
+      orca.OrcaServer.serveApp(argResults!['name']);
     } else {
       print("No name specified");
     }
@@ -75,8 +82,8 @@ class OrcaStopCommand extends Command {
 
   @override
   FutureOr? run() {
-    if (argResults!.wasParsed('name')) {
-      orca.OrcaServer.stopServingApp(argResults!.options.first);
+    if (argResults!['name'] != null) {
+      orca.OrcaServer.stopServingApp(argResults!['name']);
     } else {
       print("No name specified");
     }
