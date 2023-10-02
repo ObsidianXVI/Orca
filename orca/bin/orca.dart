@@ -19,24 +19,27 @@ final Map<String, dynamic> configsJson = {
 };
 
 void main(List<String> _) {
-  stdin
+  stdin.listen((e) => OrcaCLI.stdinController.add(e));
+  OrcaCLI.stdinBroadcast
       .transform(utf8.decoder)
       .transform(const LineSplitter())
       .listen((String line) {
     if (line.trim() == 'exit') exit(0);
-    OrcaCLI.commandRunner.run(line.split(' '));
+    if (!OrcaCLI.interactiveMode) OrcaCLI.commandRunner.run(line.split(' '));
   });
 }
 
 class OrcaCLI {
+  static bool interactiveMode = false;
+  static final StreamController<List<int>> stdinController =
+      StreamController.broadcast();
+  static Stream<List<int>> get stdinBroadcast => stdinController.stream;
+
   static final CommandRunner commandRunner = CommandRunner('orca',
       'Orchestrate the deployment, installation, maintenance and runtimes of locally-hosted Flutter web apps.')
-    ..addCommand(
-      OrcaServeCommand(),
-    )
-    ..addCommand(
-      OrcaStopCommand(),
-    );
+    ..addCommand(OrcaServeCommand())
+    ..addCommand(OrcaStopCommand())
+    ..addCommand(OrcaDumpCommand());
 }
 
 class OrcaServeCommand extends Command {
@@ -46,19 +49,33 @@ class OrcaServeCommand extends Command {
   final description = 'Start serving a specific app.';
 
   OrcaServeCommand() {
-    argParser.addOption(
-      'name',
-      abbr: 'n',
-      help: 'Exact name of the app to serve, as defined in its pubspec file.',
-      valueHelp: 'name_of_app',
-    );
+    argParser
+      ..addOption(
+        'name',
+        abbr: 'n',
+        help: 'Exact name of the app to serve, as defined in its pubspec file.',
+        valueHelp: 'name_of_app',
+      )
+      ..addFlag(
+        'interactive',
+        abbr: 'i',
+        help:
+            'Launch in interactive mode, connecting I/O streams to the process.',
+        defaultsTo: false,
+        negatable: false,
+      );
   }
 
   @override
   FutureOr? run() async {
     await orca.OrcaServer.init(orca.OrcaConfigs.fromJson(configsJson));
     if (argResults!['name'] != null) {
-      orca.OrcaServer.serveApp(argResults!['name']);
+      OrcaCLI.interactiveMode = argResults!['interactive'];
+      orca.OrcaServer.serveApp(
+        argResults!['name'],
+        pipeIO: argResults!['interactive'],
+        stdinStream: OrcaCLI.stdinBroadcast,
+      );
     } else {
       print("No name specified");
     }
@@ -84,6 +101,31 @@ class OrcaStopCommand extends Command {
   FutureOr? run() {
     if (argResults!['name'] != null) {
       orca.OrcaServer.stopServingApp(argResults!['name']);
+    } else {
+      print("No name specified");
+    }
+  }
+}
+
+class OrcaDumpCommand extends Command {
+  @override
+  final name = 'dump';
+  @override
+  final description = 'Dump console logs for a specific app.';
+
+  OrcaDumpCommand() {
+    argParser.addOption(
+      'name',
+      abbr: 'n',
+      help: 'Exact name of the app to stop, as defined in its pubspec file.',
+      valueHelp: 'name_of_app',
+    );
+  }
+
+  @override
+  FutureOr? run() {
+    if (argResults!['name'] != null) {
+      orca.OrcaServer.getLogsFor(argResults!['name']);
     } else {
       print("No name specified");
     }
