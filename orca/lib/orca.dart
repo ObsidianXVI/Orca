@@ -14,9 +14,7 @@ class OrcaServer {
   static late OrcaConfigs orcaConfigs;
   static final Map<String, Process> processes = {};
 
-  static Future<void> init(OrcaConfigs configs) async {
-    orcaConfigs = configs;
-  }
+  static void init(OrcaConfigs configs) => orcaConfigs = configs;
 
   static void serveApp(
     String appName, {

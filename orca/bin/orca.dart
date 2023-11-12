@@ -2,23 +2,25 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:orca/orca.dart' as orca;
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
+import 'package:orca/orca.dart';
 
-final Map<String, dynamic> configsJson = {
-  "flutterPath": "/usr/local/bin/flutter/bin/flutter",
-  "apps": [
-    {
-      "appName": "testproj",
-      "version": "1.0.0",
-      "path":
-          "/Users/OBSiDIAN/Downloads/Shelves/VSCode/Repositories/Playground/tproj/testproj"
-    }
-  ]
-};
-
-void main(List<String> _) {
+late final String orcaPath;
+late final OrcaConfigs configs;
+void main(List<String> _) async {
+  final env = Platform.environment;
+  if (env.containsKey('ORCA_PATH')) {
+    orcaPath = env['ORCA_PATH'] as String;
+  } else {
+    print("Could not detect env variable for ORCA_PATH");
+    exit(1);
+  }
+  configs = OrcaConfigs.fromJson(
+    jsonDecode(
+      await File("$orcaPath/configs/orca_configs.json").readAsString(),
+    ),
+  );
   stdin.listen((e) => OrcaCLI.stdinController.add(e));
   OrcaCLI.stdinBroadcast
       .transform(utf8.decoder)
@@ -37,18 +39,19 @@ class OrcaCLI {
 
   static final CommandRunner commandRunner = CommandRunner('orca',
       'Orchestrate the deployment, installation, maintenance and runtimes of locally-hosted Flutter web apps.')
-    ..addCommand(OrcaServeCommand())
-    ..addCommand(OrcaStopCommand())
-    ..addCommand(OrcaDumpCommand());
+    ..addCommand(ServeCommand())
+    ..addCommand(StopCommand())
+    ..addCommand(DumpCommand())
+    ..addCommand(InstallCommand());
 }
 
-class OrcaServeCommand extends Command {
+class ServeCommand extends Command {
   @override
   final name = 'serve';
   @override
   final description = 'Start serving a specific app.';
 
-  OrcaServeCommand() {
+  ServeCommand() {
     argParser
       ..addOption(
         'name',
@@ -67,11 +70,11 @@ class OrcaServeCommand extends Command {
   }
 
   @override
-  FutureOr? run() async {
-    await orca.OrcaServer.init(orca.OrcaConfigs.fromJson(configsJson));
+  FutureOr? run() {
+    OrcaServer.init(configs);
     if (argResults!['name'] != null) {
       OrcaCLI.interactiveMode = argResults!['interactive'];
-      orca.OrcaServer.serveApp(
+      OrcaServer.serveApp(
         argResults!['name'],
         pipeIO: argResults!['interactive'],
         stdinStream: OrcaCLI.stdinBroadcast,
@@ -82,13 +85,13 @@ class OrcaServeCommand extends Command {
   }
 }
 
-class OrcaStopCommand extends Command {
+class StopCommand extends Command {
   @override
   final name = 'stop';
   @override
   final description = 'Stop serving a specific app.';
 
-  OrcaStopCommand() {
+  StopCommand() {
     argParser.addOption(
       'name',
       abbr: 'n',
@@ -100,20 +103,20 @@ class OrcaStopCommand extends Command {
   @override
   FutureOr? run() {
     if (argResults!['name'] != null) {
-      orca.OrcaServer.stopServingApp(argResults!['name']);
+      OrcaServer.stopServingApp(argResults!['name']);
     } else {
       print("No name specified");
     }
   }
 }
 
-class OrcaDumpCommand extends Command {
+class DumpCommand extends Command {
   @override
   final name = 'dump';
   @override
   final description = 'Dump console logs for a specific app.';
 
-  OrcaDumpCommand() {
+  DumpCommand() {
     argParser.addOption(
       'name',
       abbr: 'n',
@@ -125,9 +128,38 @@ class OrcaDumpCommand extends Command {
   @override
   FutureOr? run() {
     if (argResults!['name'] != null) {
-      orca.OrcaServer.getLogsFor(argResults!['name']);
+      OrcaServer.getLogsFor(argResults!['name']);
     } else {
       print("No name specified");
     }
   }
+}
+
+class InstallCommand extends Command {
+  @override
+  final name = 'install';
+  @override
+  final description = 'Install an Orca-enabled app from path.';
+
+  InstallCommand() {
+    argParser
+      ..addOption(
+        'name',
+        abbr: 'n',
+        help: 'Exact name of the app, as defined in its pubspec file.',
+        mandatory: true,
+        valueHelp: 'name_of_app',
+      )
+      ..addOption(
+        'path',
+        abbr: 'p',
+        help:
+            "Path to the directory that the app's pubspec file is located in.",
+        mandatory: true,
+        valueHelp: 'path/to/directory',
+      );
+  }
+
+  @override
+  FutureOr? run() {}
 }
