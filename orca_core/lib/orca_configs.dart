@@ -2,7 +2,7 @@ part of orca;
 
 class OrcaConfigs {
   final String flutterPath;
-  final List<OrcaAppConfig> apps;
+  final List<AppComponent> apps;
 
   const OrcaConfigs({
     required this.flutterPath,
@@ -13,9 +13,8 @@ class OrcaConfigs {
       : flutterPath = jsonConfigs['flutterPath'],
         apps = (jsonConfigs['apps'] as List)
             .map(
-              (json) => OrcaAppConfig(
+              (json) => AppComponent(
                 appName: json['appName'],
-                version: json['version'],
                 path: json['path'],
               ),
             )
@@ -33,21 +32,29 @@ abstract class OrcaConfigComponent {
   JSON toJson();
 }
 
-class OrcaAppConfig extends OrcaConfigComponent {
+class AppComponent extends OrcaConfigComponent {
   final String appName;
-  final String version;
   final String path;
 
-  const OrcaAppConfig({
+  const AppComponent({
     required this.appName,
-    required this.version,
     required this.path,
   });
 
   @override
   JSON toJson() => {
         'appName': appName,
-        'version': version,
         'path': path,
       };
+}
+
+class OrcaAppConfig {
+  final List<String> commands;
+
+  const OrcaAppConfig({
+    required this.commands,
+  });
+
+  OrcaAppConfig.fromJson(JSON jsonConfigs)
+      : commands = (jsonConfigs['commands'] as List).cast<String>();
 }

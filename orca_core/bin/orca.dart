@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
-import 'package:orca/orca.dart';
+import 'package:orca_core/orca.dart';
 
 late final String orcaPath;
 late final OrcaConfigs configs;
@@ -71,10 +71,10 @@ class ServeCommand extends Command {
 
   @override
   FutureOr? run() {
-    OrcaServer.init(configs);
+    OrcaCore.init(configs);
     if (argResults!['name'] != null) {
       OrcaCLI.interactiveMode = argResults!['interactive'];
-      OrcaServer.serveApp(
+      OrcaCore.serveApp(
         argResults!['name'],
         pipeIO: argResults!['interactive'],
         stdinStream: OrcaCLI.stdinBroadcast,
@@ -103,7 +103,7 @@ class StopCommand extends Command {
   @override
   FutureOr? run() {
     if (argResults!['name'] != null) {
-      OrcaServer.stopServingApp(argResults!['name']);
+      OrcaCore.stopServingApp(argResults!['name']);
     } else {
       print("No name specified");
     }
@@ -128,7 +128,7 @@ class DumpCommand extends Command {
   @override
   FutureOr? run() {
     if (argResults!['name'] != null) {
-      OrcaServer.getLogsFor(argResults!['name']);
+      OrcaCore.getLogsFor(argResults!['name']);
     } else {
       print("No name specified");
     }

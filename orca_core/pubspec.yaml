@@ -1,4 +1,4 @@
-name: orca
+name: orca_core
 description: Orchestrate the deployment, installation, maintenance and runtimes of locally-hosted Flutter web apps.
 version: 1.0.0
 # repository: https://github.com/my_org/my_repo
@@ -12,7 +12,7 @@ environment:
 # Add regular dependencies here.
 dependencies:
   args: ^2.4.2
-  collection: ^1.18.0
+  collection: ^1.17.2
   # path: ^1.8.0
 
 dev_dependencies:
