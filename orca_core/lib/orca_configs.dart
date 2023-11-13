@@ -12,12 +12,7 @@ class OrcaConfigs {
   OrcaConfigs.fromJson(JSON jsonConfigs)
       : flutterPath = jsonConfigs['flutterPath'],
         apps = (jsonConfigs['apps'] as List)
-            .map(
-              (json) => AppComponent(
-                appName: json['appName'],
-                path: json['path'],
-              ),
-            )
+            .map((json) => AppComponent.fromJson(json))
             .toList();
 
   JSON toJson() => {
@@ -41,9 +36,13 @@ class AppComponent extends OrcaConfigComponent {
     required this.path,
   });
 
+  AppComponent.fromJson(JSON jsonConfigs)
+      : appName = jsonConfigs['name'],
+        path = jsonConfigs['path'];
+
   @override
   JSON toJson() => {
-        'appName': appName,
+        'name': appName,
         'path': path,
       };
 }

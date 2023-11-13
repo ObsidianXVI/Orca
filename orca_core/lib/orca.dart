@@ -15,8 +15,29 @@ class OrcaInteractive {}
 class OrcaCore {
   static late OrcaConfigs orcaConfigs;
   static final Map<String, Process> processes = {};
+  static late final HttpServer server;
 
-  static void init(OrcaConfigs configs) => orcaConfigs = configs;
+  static Future<void> init(OrcaConfigs configs) async {
+    orcaConfigs = configs;
+    server = await HttpServer.bind(InternetAddress.anyIPv4, 8082);
+    print(
+        "Server listening on ${Uri(scheme: 'http', host: server.address.host, port: server.port)}");
+    server.listen((HttpRequest req) {
+      switch (req.uri.pathSegments.first) {
+        case 'apps':
+          req.response
+            ..statusCode = 200
+            ..headers.set('Access-Control-Allow-Origin', '*')
+            ..write(
+              jsonEncode({
+                'payload': [for (final a in orcaConfigs.apps) a.toJson()]
+              }),
+            );
+          break;
+      }
+      req.response.close();
+    });
+  }
 
   static Future<OrcaAppConfig> getAppConfig(String appPath) async =>
       OrcaAppConfig.fromJson(

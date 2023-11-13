@@ -1,12 +1,16 @@
 library orca_app;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
 import 'package:orca_core/orca.dart';
 
 part './daemon_bridge.dart';
 part './views/apps_view.dart';
 
-void main() {
+void main() async {
+  await DaemonBridge.getAppComponents();
   runApp(const OrcaApp());
 }
 
@@ -18,7 +22,7 @@ class OrcaApp extends StatefulWidget {
 }
 
 class OrcaAppState extends State<OrcaApp> {
-  AppComponent? currentAppComponent = appComponents.firstOrNull;
+  AppComponent? currentAppComponent;
 
   @override
   Widget build(BuildContext context) {
@@ -43,15 +47,15 @@ class OrcaAppState extends State<OrcaApp> {
         '/': (context) => Scaffold(
               appBar: AppBar(
                 title: DropdownMenu<AppComponent>(
-                  initialSelection: appComponents.firstOrNull,
+                  initialSelection: DaemonBridge.appComponents.firstOrNull,
                   onSelected: (value) =>
                       setState(() => currentAppComponent = value),
                   dropdownMenuEntries:
                       List<DropdownMenuEntry<AppComponent>>.generate(
-                    appComponents.length,
+                    DaemonBridge.appComponents.length,
                     (i) => DropdownMenuEntry<AppComponent>(
-                      value: appComponents[i],
-                      label: appComponents[i].appName,
+                      value: DaemonBridge.appComponents[i],
+                      label: DaemonBridge.appComponents[i].appName,
                     ),
                   ),
                 ),

@@ -30,6 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  http: ^1.1.0
   orca_core:
     path: ../orca_core/
 
