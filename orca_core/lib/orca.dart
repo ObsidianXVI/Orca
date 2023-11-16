@@ -23,17 +23,23 @@ class OrcaCore {
     print(
         "Server listening on ${Uri(scheme: 'http', host: server.address.host, port: server.port)}");
     server.listen((HttpRequest req) {
-      switch (req.uri.pathSegments.first) {
-        case 'apps':
-          req.response
-            ..statusCode = 200
-            ..headers.set('Access-Control-Allow-Origin', '*')
-            ..write(
-              jsonEncode({
-                'payload': [for (final a in orcaConfigs.apps) a.toJson()]
-              }),
-            );
-          break;
+      if (req.uri.pathSegments.isNotEmpty) {
+        switch (req.uri.pathSegments.first) {
+          case 'apps':
+            req.response
+              ..statusCode = 200
+              ..headers.set('Access-Control-Allow-Origin', '*')
+              ..write(
+                jsonEncode({
+                  'payload': [for (final a in orcaConfigs.apps) a.toJson()]
+                }),
+              );
+            break;
+        }
+      } else {
+        req.response
+          ..headers.set('Access-Control-Allow-Origin', '*')
+          ..statusCode = 200;
       }
       req.response.close();
     });

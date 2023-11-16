@@ -8,9 +8,10 @@ import 'package:orca_core/orca.dart';
 
 part './daemon_bridge.dart';
 part './views/apps_view.dart';
+part './views/dashboard_view.dart';
+part './support/daemon_bridge_access.dart';
 
 void main() async {
-  await DaemonBridge.getAppComponents();
   runApp(const OrcaApp());
 }
 
@@ -44,50 +45,7 @@ class OrcaAppState extends State<OrcaApp> {
         ),
       ),
       routes: {
-        '/': (context) => Scaffold(
-              appBar: AppBar(
-                title: DropdownMenu<AppComponent>(
-                  initialSelection: DaemonBridge.appComponents.firstOrNull,
-                  onSelected: (value) =>
-                      setState(() => currentAppComponent = value),
-                  dropdownMenuEntries:
-                      List<DropdownMenuEntry<AppComponent>>.generate(
-                    DaemonBridge.appComponents.length,
-                    (i) => DropdownMenuEntry<AppComponent>(
-                      value: DaemonBridge.appComponents[i],
-                      label: DaemonBridge.appComponents[i].appName,
-                    ),
-                  ),
-                ),
-              ),
-              drawer: Drawer(
-                child: ListView(
-                  children: [
-                    const DrawerHeader(
-                      child: Text('Orca'),
-                    ),
-                    ListTile(
-                      title: const Text('Apps'),
-                      onTap: () {
-                        Navigator.of(context).pushNamed('/apps');
-                      },
-                    ),
-                    ListTile(
-                      title: const Text('Engines'),
-                      onTap: () {},
-                    ),
-                    ListTile(
-                      title: const Text('Runtimes'),
-                      onTap: () {},
-                    ),
-                    ListTile(
-                      title: const Text('Environments'),
-                      onTap: () {},
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        '/': (context) => const DashboardView(),
         '/apps': (_) => const AppsView(),
       },
     );
