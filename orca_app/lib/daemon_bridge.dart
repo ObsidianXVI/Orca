@@ -18,12 +18,20 @@ class DaemonBridge {
   }
 
   static Future<List<AppComponent>> getAppComponents() async {
-    final Response res = await client.get(endpoint('apps'));
-    return appComponents
-      ..clear()
-      ..addAll([
-        for (final appComp in (jsonDecode(res.body)['payload'] as List))
-          AppComponent.fromJson(appComp)
-      ]);
+    final Response response = await client.get(endpoint('apps'));
+    final OrcaResult res = OrcaResult.fromJson(jsonDecode(response.body));
+    // dev arch more to handle errors as well
+    return appComponents.updatedTo([
+      for (final appComp in (res.payload as List))
+        AppComponent.fromJson(appComp)
+    ]);
+  }
+}
+
+extension ListUtils<T> on List<T> {
+  List<T> updatedTo(List<T> newItems) {
+    clear();
+    addAll(newItems);
+    return newItems;
   }
 }

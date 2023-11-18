@@ -1,8 +1,10 @@
 library orca_app;
 
 import 'dart:convert';
+import 'dart:js_util';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 import 'package:orca_core/orca.dart';
 
@@ -28,6 +30,7 @@ class OrcaAppState extends State<OrcaApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme(

@@ -1,4 +1,4 @@
-part of orca;
+part of orca_core;
 
 class OrcaConfigs {
   final String flutterPath;
