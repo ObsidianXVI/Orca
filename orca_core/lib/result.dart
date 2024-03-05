@@ -35,6 +35,7 @@ extension ResponseUtils on HttpResponse {
     headers.set('Access-Control-Allow-Origin', '*');
     write(
       jsonEncode({
+        'statusCode': statusCode,
         if (orcaResult.payload != null) 'payload': orcaResult.payload,
         if (orcaResult.exception != null)
           'exception': orcaResult.exception!.toJson(),

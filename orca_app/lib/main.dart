@@ -1,15 +1,15 @@
 library orca_app;
 
 import 'dart:convert';
-import 'dart:js_util';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart';
 import 'package:orca_core/orca.dart';
 
 part './daemon_bridge.dart';
 part './views/apps_view.dart';
+part './views/engines_view.dart';
+part './views/services_view.dart';
 part './views/dashboard_view.dart';
 part './support/daemon_bridge_access.dart';
 
@@ -50,6 +50,8 @@ class OrcaAppState extends State<OrcaApp> {
       routes: {
         '/': (context) => const DashboardView(),
         '/apps': (_) => const AppsView(),
+        '/engines': (_) => const EnginesView(),
+        '/services': (_) => const ServicesView(),
       },
     );
   }

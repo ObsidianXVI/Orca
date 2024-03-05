@@ -1,31 +1,31 @@
 part of orca_app;
 
-class AppsView extends StatefulWidget {
-  const AppsView({super.key});
+class ServicesView extends StatefulWidget {
+  const ServicesView({super.key});
 
   @override
-  State<StatefulWidget> createState() => AppsViewState();
+  State<StatefulWidget> createState() => ServicesViewState();
 }
 
-class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
+class ServicesViewState extends State<ServicesView> with DaemonBridgeAccess {
   final TextEditingController addAppTextController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return usesDaemonBridge(
-      routeName: '/apps',
-      daemonCall: DaemonBridge.getAppComponents(),
-      builder: (context, appComponents) {
+      routeName: '/services',
+      daemonCall: DaemonBridge.getServiceComponents(),
+      builder: (context, serviceComponents) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Apps'),
+            title: const Text('Services'),
             actions: [
               TextButton(
                 onPressed: () {
                   showDialog(
                       context: context, builder: (ctx) => addAppDialog(ctx));
                 },
-                child: const Text('Add app'),
+                child: const Text('Add service'),
               ),
             ],
           ),
@@ -40,7 +40,7 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: List<Widget>.generate(
-                      appComponents.length,
+                      serviceComponents.length,
                       (i) => Align(
                         alignment: Alignment.topLeft,
                         child: Container(
@@ -51,7 +51,7 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
                             alignment: Alignment.topLeft,
                             child: Padding(
                               padding: const EdgeInsets.all(20),
-                              child: Text(appComponents[i].appName),
+                              child: Text(serviceComponents[i].name),
                             ),
                           ),
                         ),
@@ -69,12 +69,12 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
 
   SimpleDialog addAppDialog(BuildContext context) {
     return SimpleDialog(
-      title: const Text('Add App'),
+      title: const Text('Add Service'),
       children: [
         TextField(
           controller: addAppTextController,
           decoration: const InputDecoration(
-            labelText: 'Path to root directory of project, or Git repo URL',
+            labelText: 'Path to service root directory',
           ),
         ),
         const SizedBox(height: 10),

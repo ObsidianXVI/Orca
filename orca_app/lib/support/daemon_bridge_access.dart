@@ -17,7 +17,18 @@ mixin DaemonBridgeAccess<T extends StatefulWidget> on State<T> {
               future: daemonCall,
               builder: (context2, snapshot) {
                 if (snapshot.connectionState == ConnectionState.done) {
-                  return builder(context2, snapshot.data!);
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Container(
+                        color: Colors.black,
+                        child: Center(
+                          child: Text(snapshot.error.toString()),
+                        ),
+                      ),
+                    );
+                  } else {
+                    return builder(context2, snapshot.data!);
+                  }
                 } else {
                   return const CircularProgressIndicator();
                 }

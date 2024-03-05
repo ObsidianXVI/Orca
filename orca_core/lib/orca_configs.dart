@@ -1,23 +1,35 @@
 part of orca_core;
 
 class OrcaConfigs {
-  final String flutterPath;
   final List<AppComponent> apps;
+  final List<EngineComponent> engines;
+  final List<ServiceComponent> services;
 
   const OrcaConfigs({
-    required this.flutterPath,
     required this.apps,
+    required this.engines,
+    required this.services,
   });
 
   OrcaConfigs.fromJson(JSON jsonConfigs)
-      : flutterPath = jsonConfigs['flutterPath'],
-        apps = (jsonConfigs['apps'] as List)
+      : apps = (jsonConfigs['apps'] as List)
             .map((json) => AppComponent.fromJson(json))
+            .toList(),
+        engines = (jsonConfigs['engines'] as Map)
+            .entries
+            .map((e) => EngineComponent(
+                  version: e.key,
+                  path: e.value,
+                ))
+            .toList(),
+        services = (jsonConfigs['services'] as List)
+            .map((json) => ServiceComponent.fromJson(json))
             .toList();
 
   JSON toJson() => {
-        'flutterPath': flutterPath,
         'apps': apps.map((e) => e.toJson()).toList(),
+        'engines': engines.map((e) => e.toJson()).toList(),
+        'services': services.map((e) => e.toJson()).toList(),
       };
 }
 
@@ -45,6 +57,69 @@ class AppComponent extends OrcaConfigComponent {
         'name': appName,
         'path': path,
       };
+}
+
+class EngineComponent extends OrcaConfigComponent {
+  final String version;
+  final String path;
+
+  const EngineComponent({
+    required this.version,
+    required this.path,
+  });
+
+  EngineComponent.fromJson(JSON jsonConfigs)
+      : version = jsonConfigs['version'],
+        path = jsonConfigs['path'];
+
+  @override
+  JSON toJson() => {
+        'version': version,
+        'path': path,
+      };
+}
+
+class ServiceComponent extends OrcaConfigComponent {
+  final String name;
+  final List<ServiceComponentEntry> componentEntries;
+
+  const ServiceComponent({
+    required this.name,
+    required this.componentEntries,
+  });
+
+  static ServiceComponent fromJson(JSON jsonConfigs) {
+    final String name = jsonConfigs['name'];
+    final List<ServiceComponentEntry> entries = [];
+    for (int i = 0; i < jsonConfigs['versions'].length; i++) {
+      entries.add(ServiceComponentEntry(
+        version: jsonConfigs['versions'][i],
+        path: jsonConfigs['paths'][i],
+      ));
+    }
+    return ServiceComponent(name: name, componentEntries: entries);
+  }
+
+  @override
+  JSON toJson() {
+    final List<String> versions = [for (final e in componentEntries) e.version];
+    final List<String> paths = [for (final e in componentEntries) e.path];
+    return {
+      'name': name,
+      'versions': versions,
+      'paths': paths,
+    };
+  }
+}
+
+class ServiceComponentEntry {
+  final String version;
+  final String path;
+
+  const ServiceComponentEntry({
+    required this.version,
+    required this.path,
+  });
 }
 
 class OrcaAppConfig {

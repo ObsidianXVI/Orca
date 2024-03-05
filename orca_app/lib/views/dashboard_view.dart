@@ -46,7 +46,15 @@ class DashboardViewState extends State<DashboardView> with DaemonBridgeAccess {
                 ),
                 ListTile(
                   title: const Text('Engines'),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.of(context).pushNamed('/engines');
+                  },
+                ),
+                ListTile(
+                  title: const Text('Services'),
+                  onTap: () {
+                    Navigator.of(context).pushNamed('/services');
+                  },
                 ),
                 ListTile(
                   title: const Text('Runtimes'),
@@ -58,6 +66,12 @@ class DashboardViewState extends State<DashboardView> with DaemonBridgeAccess {
                 ),
               ],
             ),
+          ),
+          body: TextButton(
+            child: const Text('Start running'),
+            onPressed: () {
+              // dialog to configure a runtime, where they select engine and services
+            },
           ),
         );
       },
