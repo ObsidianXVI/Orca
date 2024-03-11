@@ -5,7 +5,7 @@ class OrcaRuntime {
   final String appName;
   final String engineVersion;
   final List<String> serviceNames;
-  late final Uri address;
+  // late final Uri address;
   final List<String> logs = [];
 
   OrcaRuntime({
@@ -44,7 +44,7 @@ class OrcaRuntime {
         eComp.path,
         [
           'run',
-          '--release',
+          // '--release',
           '-d',
           'chrome',
         ],
@@ -56,4 +56,13 @@ class OrcaRuntime {
       return proc;
     }
   }
+
+  Map<String, Object?> toJson() => {
+        'configs': configs.toJson(),
+        'appName': appName,
+        'engineVersion': engineVersion,
+        'serviceNames': serviceNames,
+        'address': 'NA',
+        'logs': logs,
+      };
 }

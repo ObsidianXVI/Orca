@@ -20,7 +20,7 @@ enum AppSourceType {
 class OrcaCore {
   static late OrcaConfigs orcaConfigs;
   static late final HttpServer server;
-  static final Map<String, Process> runtimes = {};
+  static final Map<OrcaRuntime, Process> runtimes = {};
 
   static Future<void> init(OrcaConfigs configs) async {
     ProcessSignal.sigint.watch().listen((signal) {
@@ -110,7 +110,10 @@ class OrcaCore {
             ..statusCode = 400
             ..headers.set('Access-Control-Allow-Origin', '*')
             ..write(
-              jsonEncode(e.toJson()),
+              jsonEncode({
+                'statusCode': 400,
+                ...e.toJson(),
+              }),
             );
         }
       } else {
@@ -123,11 +126,10 @@ class OrcaCore {
   }
 
   static void deinit() {
-    final Iterable<MapEntry<String, Process>> runtimeEntries = runtimes.entries;
-    print("Teriminating ${runtimeEntries.length} remaining runtimes...");
+    print("Teriminating ${runtimes.length} remaining runtimes...");
 
-    for (MapEntry<String, Process> runtime in runtimeEntries) {
-      print("  Terminating runtime for '${runtime.key}'...");
+    for (MapEntry<OrcaRuntime, Process> runtime in runtimes.entries) {
+      print("  Terminating runtime for '${runtime.key.appName}'...");
       runtime.value.kill();
       print("    Done");
     }
@@ -155,7 +157,9 @@ class OrcaCore {
       );
 
   /// Lists all available runtimes.
-  static OrcaResult runtimesList() => OrcaResult(statusCode: 200);
+  static OrcaResult runtimesList() => OrcaResult(
+      statusCode: 200,
+      payload: [for (final a in runtimes.entries) a.key.toJson()]);
 
   /// Creates an app configuration with the given path/URL and app type.
   /// Currently only [AppSourceType.local] is allowed.
@@ -243,25 +247,28 @@ class OrcaCore {
         ),
       );
     } else {
-      runtimes[appName] = proc;
+      print("PID: ${proc.pid}");
+      runtimes[orcaRuntime] = proc;
       return OrcaResult(statusCode: 200);
     }
   }
 
   static OrcaResult runtimesDelete(String appName) {
-    if (runtimes.containsKey(appName)) {
-      runtimes[appName]!.kill();
-      return OrcaResult(statusCode: 200);
-    } else {
-      return OrcaResult(
-        statusCode: 400,
-        exception: OrcaException(
-          message:
-              "Runtime for '$appName' could not be deleted as it does not exist",
-          exceptionLevel: ExceptionLevel.error,
-        ),
-      );
+    for (MapEntry<OrcaRuntime, Process> rt in runtimes.entries) {
+      if (rt.key.appName == appName) {
+        rt.value.kill();
+        return OrcaResult(statusCode: 200);
+      }
     }
+
+    return OrcaResult(
+      statusCode: 400,
+      exception: OrcaException(
+        message:
+            "Runtime for '$appName' could not be deleted as it does not exist",
+        exceptionLevel: ExceptionLevel.error,
+      ),
+    );
   }
 }
 

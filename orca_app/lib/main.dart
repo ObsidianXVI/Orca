@@ -7,10 +7,18 @@ import 'package:http/http.dart';
 import 'package:orca_core/orca.dart';
 
 part './daemon_bridge.dart';
+
+part './ui/color_scheme.dart';
+part './ui/button_style.dart';
+part './ui/text_theme.dart';
+
 part './views/apps_view.dart';
 part './views/engines_view.dart';
 part './views/services_view.dart';
 part './views/dashboard_view.dart';
+
+part './forms/runtime_create.dart';
+
 part './support/daemon_bridge_access.dart';
 
 void main() async {
@@ -33,19 +41,8 @@ class OrcaAppState extends State<OrcaApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme(
-          primary: const Color(0xff4A4E69),
-          onPrimary: const Color(0xff9A8C98),
-          secondary: const Color(0xff9A8C98),
-          onSecondary: const Color(0xff9a8c98),
-          background: const Color(0xff4A4E69),
-          onBackground: const Color(0xff9A8C98),
-          surface: const Color(0xff22223B),
-          onSurface: const Color(0xffF2E9E4),
-          error: const Color(0xffd62828).withOpacity(0.2),
-          onError: const Color(0xffd62828),
-          brightness: Brightness.dark,
-        ),
+        colorScheme: OrcaColorSchme.colorSchemeDark,
+        textButtonTheme: OrcaButtonStyle.textButtonStyle,
       ),
       routes: {
         '/': (context) => const DashboardView(),

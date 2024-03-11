@@ -34,8 +34,11 @@ class OrcaException implements Exception {
   });
 
   static OrcaException fromJson(JSON json) => OrcaException(
-        message: json['message'],
-        exceptionLevel: ExceptionLevel.fromString(json['exceptionLevel']),
+        message: json['message'] as String,
+        exceptionLevel: ExceptionLevel.fromString(
+          json['exceptionLevel'] as String,
+        ),
+        payload: json['payload'],
       );
 
   JSON toJson() => {
