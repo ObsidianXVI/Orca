@@ -51,6 +51,12 @@ class OrcaCore {
                     AppSourceType.local,
                   ));
                   break;
+                case 'delete':
+                  req.response.fromOrcaResult(await appsCreate(
+                    req.uri.queryParameters.get<String>('source'),
+                    AppSourceType.local,
+                  ));
+                  break;
               }
               break;
             case 'engines':
@@ -91,14 +97,29 @@ class OrcaCore {
                   req.response.fromOrcaResult(runtimesList());
                   break;
                 case 'create':
+                  print(req.uri.queryParameters['services']);
                   req.response.fromOrcaResult(await runtimesCreate(
                     req.uri.queryParameters.get<String>('appName'),
                     req.uri.queryParameters.get<String>('engineVersion'),
-                    [], // idk how to parse a list from HTTP query param
+                    [],
                   ));
                   break;
                 case 'delete':
                   req.response.fromOrcaResult(runtimesDelete(
+                    req.uri.queryParameters.get<String>('appName'),
+                  ));
+                  break;
+              }
+              break;
+            case 'app':
+              switch (req.uri.pathSegments[1]) {
+                case 'get':
+                  req.response.fromOrcaResult(await appDetails(
+                    req.uri.queryParameters.get<String>('appName'),
+                  ));
+                  break;
+                case 'setup':
+                  req.response.fromOrcaResult(await appSetup(
                     req.uri.queryParameters.get<String>('appName'),
                   ));
                   break;
@@ -184,7 +205,13 @@ class OrcaCore {
         final bool hasOrcaspec =
             await File(path.join(rootDir.path, 'orcaspec.json')).exists();
         if (hasPubspec && hasOrcaspec) {
-          return OrcaResult(statusCode: 200);
+          final String appName = path.split(source).last;
+          orcaConfigs.apps.add(
+            AppComponent(appName: appName, path: source),
+          );
+          await File(orcaConfigs.configsPath)
+              .writeAsString(jsonEncode(orcaConfigs.toJson()));
+          return OrcaResult(statusCode: 200, payload: {'appName': appName});
         } else {
           return OrcaResult(
             statusCode: 405,
@@ -199,11 +226,30 @@ class OrcaCore {
         return OrcaResult(
           statusCode: 404,
           exception: OrcaException(
-            message: "Directory not found on specified path.",
+            message: "Directory not found on specified path '${rootDir.path}'.",
             exceptionLevel: ExceptionLevel.error,
           ),
         );
       }
+    }
+  }
+
+  static Future<OrcaResult> appsDelete(String name) async {
+    final AppComponent? appToDelete =
+        orcaConfigs.apps.firstWhereOrNull((app) => app.appName == name);
+    if (appToDelete == null) {
+      return OrcaResult(
+        statusCode: 404,
+        exception: OrcaException(
+          message: "App with specified name '$name' not found.",
+          exceptionLevel: ExceptionLevel.error,
+        ),
+      );
+    } else {
+      orcaConfigs.apps.remove(appToDelete);
+      await File(orcaConfigs.configsPath)
+          .writeAsString(jsonEncode(orcaConfigs.toJson()));
+      return OrcaResult(statusCode: 200);
     }
   }
 
@@ -269,6 +315,136 @@ class OrcaCore {
         exceptionLevel: ExceptionLevel.error,
       ),
     );
+  }
+
+  static Future<OrcaResult> appDetails(String appName) async {
+    final AppComponent? appComponent =
+        orcaConfigs.apps.firstWhereOrNull((app) => app.appName == appName);
+    if (appComponent != null) {
+      final Directory appDir = Directory(appComponent.path);
+      if (await appDir.exists()) {
+        final Map<String, dynamic> appDetails = {};
+        final File orcaspec =
+            File(path.join(appComponent.path, 'orcaspec.json'));
+        if (await orcaspec.exists()) {
+          appDetails.addAll(jsonDecode(await orcaspec.readAsString()));
+        } else {
+          print('no orcaspec');
+        }
+        return OrcaResult(statusCode: 200, payload: appDetails);
+      } else {
+        return OrcaResult(
+          statusCode: 404,
+          exception: OrcaException(
+            message:
+                "App with name '$appName' could not be found at path '${appComponent.path}'.",
+            exceptionLevel: ExceptionLevel.error,
+          ),
+        );
+      }
+    } else {
+      return OrcaResult(
+        statusCode: 404,
+        exception: OrcaException(
+          message: "App with name '$appName' not found.",
+          exceptionLevel: ExceptionLevel.error,
+        ),
+      );
+    }
+  }
+
+  static Future<OrcaResult> appSetup(String appName) async {
+    final AppComponent? appComponent =
+        orcaConfigs.apps.firstWhereOrNull((app) => app.appName == appName);
+    if (appComponent != null) {
+      final Directory appDir = Directory(appComponent.path);
+      if (await appDir.exists()) {
+        final File orcaspec = File("${appComponent.path}/orcaspec.json");
+        final String engineVersion;
+        final List<JSON> services;
+        if (await orcaspec.exists()) {
+          final JSON orcaspecData = jsonDecode(await orcaspec.readAsString());
+          engineVersion = orcaspecData['engine'];
+          services = orcaspecData['services'].cast<JSON>();
+        } else {
+          engineVersion = '*';
+          services = [];
+        }
+        for (final svc in services) {
+          if (svc['name'] == 'firebase') {
+            final ServiceComponent? fbComp = orcaConfigs.services
+                .firstWhereOrNull((comp) => comp.name == 'firebase');
+            if (fbComp == null) {
+              return OrcaResult(
+                statusCode: 418,
+                exception: OrcaException(
+                  message:
+                      "Service named 'firebase' (v${svc['version']}) required by app, but user does not have the firebase service specified in the orca_configs.json. Try downloading the Firebase SDK and adding it to the orca_configs.json file.",
+                  exceptionLevel: ExceptionLevel.error,
+                ),
+              );
+            } else {
+              for (final entry in fbComp.componentEntries) {
+                if (svc['version'] == '*' || entry.version == svc['version']) {
+                  if (await File(entry.path).exists()) {
+                    return OrcaResult(statusCode: 200);
+                  } else {
+                    return OrcaResult(
+                      statusCode: 418,
+                      exception: OrcaException(
+                        message:
+                            "Path specified for Firebase v${entry.version} (${entry.path}) does not exist. Try updating the path in the orca_configs.json file.",
+                        exceptionLevel: ExceptionLevel.error,
+                      ),
+                    );
+                  }
+                }
+              }
+              return OrcaResult(
+                statusCode: 418,
+                exception: OrcaException(
+                  message:
+                      "Service named 'firebase' (v${svc['version']}) required by app, but user does not have a matching version specified in the orca_configs.json. Try downloading the Firebase SDK and adding it to the orca_configs.json file.",
+                  exceptionLevel: ExceptionLevel.error,
+                ),
+              );
+            }
+          }
+        }
+        for (final engComp in orcaConfigs.engines) {
+          if (engineVersion == '*' || engComp.version == engineVersion) {
+            return OrcaResult(statusCode: 200);
+          } else {
+            return OrcaResult(
+              statusCode: 418,
+              exception: OrcaException(
+                message:
+                    "Engine(v$engineVersion) required by app, but user does not have a matching version specified in the orca_configs.json. Try downloading the Flutter SDK and adding it to the orca_configs.json file.",
+                exceptionLevel: ExceptionLevel.error,
+              ),
+            );
+          }
+        }
+        return OrcaResult(statusCode: 200);
+      } else {
+        return OrcaResult(
+          statusCode: 404,
+          exception: OrcaException(
+            message:
+                "App with name '$appName' could not be found at path '${appComponent.path}'.",
+            exceptionLevel: ExceptionLevel.error,
+          ),
+        );
+      }
+    } else {
+      return OrcaResult(
+        statusCode: 404,
+        exception: OrcaException(
+          message: "App with name '$appName' not found.",
+          exceptionLevel: ExceptionLevel.error,
+        ),
+      );
+    }
   }
 }
 

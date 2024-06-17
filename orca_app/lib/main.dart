@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
+import 'package:collection/collection.dart';
 import 'package:orca_core/orca.dart';
 
 part './daemon_bridge.dart';
@@ -16,6 +17,7 @@ part './views/apps_view.dart';
 part './views/engines_view.dart';
 part './views/services_view.dart';
 part './views/dashboard_view.dart';
+part './views/runtimes_view.dart';
 
 part './forms/runtime_create.dart';
 
@@ -49,6 +51,7 @@ class OrcaAppState extends State<OrcaApp> {
         '/apps': (_) => const AppsView(),
         '/engines': (_) => const EnginesView(),
         '/services': (_) => const ServicesView(),
+        '/runtimes': (_) => const RuntimesView(),
       },
     );
   }

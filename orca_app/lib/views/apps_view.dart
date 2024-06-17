@@ -80,9 +80,26 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
         const SizedBox(height: 10),
         TextButton(
           onPressed: () async {
-            final bool valid = true;
-            if (valid) {
-              Navigator.of(context).pop();
+            try {
+              final String appName =
+                  (await DaemonBridge.appsCreate(addAppTextController.text))
+                      .payload['appName'];
+              await DaemonBridge.appSetup(appName);
+              if (mounted) Navigator.of(context).pop();
+            } on OrcaException catch (e) {
+              if (mounted) {
+                await showDialog(
+                  context: context,
+                  builder: (ctx) => Center(
+                    child: Container(
+                      width: 500,
+                      height: 500,
+                      color: Colors.black,
+                      child: Text("${e.message}\n\n${e.payload}"),
+                    ),
+                  ),
+                );
+              }
             }
           },
           child: const Text(

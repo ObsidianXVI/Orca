@@ -13,12 +13,14 @@ void main(List<String> _) async {
     print("Could not detect env variable for ORCA_PATH");
     exit(1);
   }
+  final String configsPath = "$orcaPath/orca_configs.json";
   configs = OrcaConfigs.fromJson(
-    jsonDecode(
-      await File("$orcaPath/orca_configs.json").readAsString(),
-    ),
+    jsonDecode(await File(configsPath).readAsString()),
+    configsPath: configsPath,
   );
   print("Launching daemon...");
-  await OrcaCore.init(configs);
+  await OrcaCore.init(
+    configs,
+  );
   print("Daemon launched successfully!\n===");
 }

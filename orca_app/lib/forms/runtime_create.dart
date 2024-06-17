@@ -48,7 +48,7 @@ class RuntimeConfigurationFormState extends State<RuntimeConfigurationForm> {
                   DropdownButtonFormField<String>(
                     style: const TextStyle(color: OrcaColorSchme.almostWhite),
                     items: [DropdownMenuItem(child: Text(widget.appName))],
-                    onChanged: null,
+                    onChanged: (_) {},
                   ),
                   FutureBuilder(
                     future: DaemonBridge.getEngineComponents(),
@@ -82,10 +82,9 @@ class RuntimeConfigurationFormState extends State<RuntimeConfigurationForm> {
                       }
                     },
                   ),
-
                   const SizedBox(height: 100),
-                  // Orca is designed for Mac users, so "create" is on left of "cancel"
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: () {

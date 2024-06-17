@@ -4,6 +4,8 @@ enum OperationType {
   list,
   create,
   delete,
+  get,
+  setup,
   add;
 }
 
@@ -94,6 +96,14 @@ class DaemonBridge {
 
   static Future<void> createRuntime(
       String appName, String engineVersion) async {
+    final Response res =
+        await client.get(endpoint('app', OperationType.setup, params: {
+      'appName': appName,
+    }));
+    if (res.statusCode != 200) {
+      throw OrcaException.fromJson(jsonDecode(res.body));
+    }
+
     final Response response = await client.get(
       endpoint('runtimes', OperationType.create, params: {
         'appName': appName,
@@ -114,6 +124,58 @@ class DaemonBridge {
     }
     final OrcaResult res = OrcaResult.fromJson(jsonDecode(response.body));
   }
+
+  static Future<OrcaResult> appsCreate(String path) async {
+    final Response response = await client.get(
+      endpoint('apps', OperationType.create, params: {
+        'source': path,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw OrcaException.fromJson(jsonDecode(response.body)['exception']);
+    } else {
+      return OrcaResult.fromJson(jsonDecode(response.body));
+    }
+  }
+
+  static Future<AppDetails> appDetails(String appName) async {
+    final Response response = await client.get(
+      endpoint('app', OperationType.get, params: {'appName': appName}),
+    );
+    if (response.statusCode != 200) {
+      throw OrcaException.fromJson(jsonDecode(response.body)['exception']);
+    }
+    final OrcaResult res = OrcaResult.fromJson(jsonDecode(response.body));
+    if ((res.payload as Map<String, dynamic>).isEmpty) {
+      return const AppDetails(engine: 'Unspecified', serviceConfigs: [
+        {'Unspecified': null}
+      ]);
+    } else {
+      return AppDetails(
+        engine: res.payload['engine'],
+        serviceConfigs:
+            (res.payload['services'] as List).cast<Map<String, dynamic>>(),
+      );
+    }
+  }
+
+  static Future<void> appSetup(String appName) async {
+    final Response response = await client.get(
+        endpoint('app', OperationType.setup, params: {'appName': appName}));
+    if (response.statusCode != 200) {
+      throw OrcaException.fromJson(jsonDecode(response.body));
+    }
+  }
+}
+
+class AppDetails {
+  final String engine;
+  final List<JSON> serviceConfigs;
+
+  const AppDetails({
+    required this.engine,
+    required this.serviceConfigs,
+  });
 }
 
 extension ListUtils<T> on List<T> {

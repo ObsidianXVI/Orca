@@ -4,23 +4,23 @@ class OrcaConfigs {
   final List<AppComponent> apps;
   final List<EngineComponent> engines;
   final List<ServiceComponent> services;
+  final String configsPath;
 
   const OrcaConfigs({
     required this.apps,
     required this.engines,
     required this.services,
+    required this.configsPath,
   });
 
-  OrcaConfigs.fromJson(JSON jsonConfigs)
-      : apps = (jsonConfigs['apps'] as List)
+  OrcaConfigs.fromJson(
+    JSON jsonConfigs, {
+    required this.configsPath,
+  })  : apps = (jsonConfigs['apps'] as List)
             .map((json) => AppComponent.fromJson(json))
             .toList(),
-        engines = (jsonConfigs['engines'] as Map)
-            .entries
-            .map((e) => EngineComponent(
-                  version: e.key,
-                  path: e.value,
-                ))
+        engines = (jsonConfigs['engines'] as List)
+            .map((e) => EngineComponent.fromJson(e as Map<String, dynamic>))
             .toList(),
         services = (jsonConfigs['services'] as List)
             .map((json) => ServiceComponent.fromJson(json))
@@ -57,6 +57,13 @@ class AppComponent extends OrcaConfigComponent {
         'name': appName,
         'path': path,
       };
+
+  @override
+  bool operator ==(Object? other) =>
+      (other is AppComponent) && other.appName == appName && other.path == path;
+
+  @override
+  int get hashCode => "$appName$path".hashCode;
 }
 
 class EngineComponent extends OrcaConfigComponent {
