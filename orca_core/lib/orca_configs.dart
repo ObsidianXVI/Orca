@@ -30,6 +30,7 @@ class OrcaConfigs {
         'apps': apps.map((e) => e.toJson()).toList(),
         'engines': engines.map((e) => e.toJson()).toList(),
         'services': services.map((e) => e.toJson()).toList(),
+        'configsPath': configsPath,
       };
 }
 

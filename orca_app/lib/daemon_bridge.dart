@@ -80,18 +80,15 @@ class DaemonBridge {
     ]);
   }
 
-  static Future<List<ServiceComponent>> getRuntimes() async {
+  static Future<List<OrcaRuntime>> getRuntimes() async {
     final Response response =
-        await client.get(endpoint('services', OperationType.list));
+        await client.get(endpoint('runtimes', OperationType.list));
     if (response.statusCode != 200) {
       throw OrcaException.fromJson(jsonDecode(response.body));
     }
     final OrcaResult res = OrcaResult.fromJson(jsonDecode(response.body));
 
-    return serviceComponents.updatedTo([
-      for (final svcComp in (res.payload as List))
-        ServiceComponent.fromJson(svcComp)
-    ]);
+    return [for (final obj in res.payload) OrcaRuntime.fromJson(obj as JSON)];
   }
 
   static Future<void> createRuntime(
@@ -123,6 +120,18 @@ class DaemonBridge {
       throw OrcaException.fromJson(jsonDecode(response.body));
     }
     final OrcaResult res = OrcaResult.fromJson(jsonDecode(response.body));
+  }
+
+  static Future<OrcaRuntime> getRuntime(String appName) async {
+    final Response response = await client.get(
+      endpoint('runtimes', OperationType.get, params: {'appName': appName}),
+    );
+    if (response.statusCode != 200) {
+      throw OrcaException.fromJson(jsonDecode(response.body));
+    }
+    final JSON runtimeData =
+        OrcaResult.fromJson(jsonDecode(response.body)).payload;
+    return OrcaRuntime.fromJson(runtimeData);
   }
 
   static Future<OrcaResult> appsCreate(String path) async {

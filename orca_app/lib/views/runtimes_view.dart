@@ -13,7 +13,7 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
     return usesDaemonBridge(
         routeName: '/runtimes',
         daemonCall: DaemonBridge.getRuntimes(),
-        builder: (context, runtimeComponents) {
+        builder: (context, runtimes) {
           return Scaffold(
             appBar: AppBar(
               title: const Text('Runtimes'),
@@ -21,13 +21,17 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
                 TextButton(
                   child: const Text('Start running'),
                   onPressed: () async {
+                    final appComponents = await DaemonBridge.getAppComponents();
+                    if (!mounted) return;
                     final Map<String, String>? results =
                         await showDialog<Map<String, String>>(
                       context: context,
                       builder: (_) => SizedBox(
-                        child: const RuntimeConfigurationForm(
+                        child: RuntimeConfigurationForm(
                           header: "Configure runtime details",
-                          appName: '',
+                          appNames: [
+                            for (final ac in appComponents) ac.appName
+                          ],
                         ),
                       ),
                     );
@@ -42,9 +46,7 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
                       try {
                         await DaemonBridge.createRuntime(
                             results['appName']!, results['engineVersion']!);
-                        setState(() {
-                          // hasRuntime = true;
-                        });
+                        setState(() {});
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -92,6 +94,26 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
                 )
               ],
             ),
+            body: runtimes.isNotEmpty
+                ? GridView.builder(
+                    padding: const EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 20,
+                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 500,
+                      mainAxisSpacing: 20,
+                      crossAxisSpacing: 20,
+                    ),
+                    itemCount: runtimes.length,
+                    itemBuilder: (_, i) => RuntimeWindow(
+                      runtime: runtimes[i],
+                      refreshGridView: setState,
+                    ),
+                  )
+                : null,
           );
         });
   }

@@ -96,6 +96,11 @@ class OrcaCore {
                 case 'list':
                   req.response.fromOrcaResult(runtimesList());
                   break;
+                case 'get':
+                  req.response.fromOrcaResult(await runtimesGet(
+                    req.uri.queryParameters.get<String>('appName'),
+                  ));
+                  break;
                 case 'create':
                   print(req.uri.queryParameters['services']);
                   req.response.fromOrcaResult(await runtimesCreate(
@@ -303,7 +308,25 @@ class OrcaCore {
     for (MapEntry<OrcaRuntime, Process> rt in runtimes.entries) {
       if (rt.key.appName == appName) {
         rt.value.kill();
+        runtimes.remove(rt.key);
         return OrcaResult(statusCode: 200);
+      }
+    }
+
+    return OrcaResult(
+      statusCode: 400,
+      exception: OrcaException(
+        message:
+            "Runtime for '$appName' could not be deleted as it does not exist",
+        exceptionLevel: ExceptionLevel.error,
+      ),
+    );
+  }
+
+  static Future<OrcaResult> runtimesGet(String appName) async {
+    for (MapEntry<OrcaRuntime, Process> rt in runtimes.entries) {
+      if (rt.key.appName == appName) {
+        return OrcaResult(statusCode: 200, payload: rt.key.toJson());
       }
     }
 

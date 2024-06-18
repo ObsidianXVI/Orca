@@ -1,5 +1,6 @@
 library orca_app;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ part './daemon_bridge.dart';
 part './ui/color_scheme.dart';
 part './ui/button_style.dart';
 part './ui/text_theme.dart';
+part './ui/runtime_window.dart';
 
 part './views/apps_view.dart';
 part './views/engines_view.dart';

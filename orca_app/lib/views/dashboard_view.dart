@@ -9,7 +9,6 @@ class DashboardView extends StatefulWidget {
 
 class DashboardViewState extends State<DashboardView> with DaemonBridgeAccess {
   AppComponent? currentAppComponent;
-  bool hasRuntime = false;
 
   @override
   Widget build(BuildContext context) {
@@ -84,107 +83,119 @@ class DashboardViewState extends State<DashboardView> with DaemonBridgeAccess {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
-                hasRuntime
-                    ? TextButton(
-                        child: const Text('Stop running'),
-                        onPressed: () async {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Stopping runtime..."),
-                              ),
-                            );
-                          }
-                          await DaemonBridge.deleteRuntime(
-                              currentAppComponent!.appName);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Runtime deleted successfully!"),
-                              ),
-                            );
-                          }
-                          setState(() {
-                            hasRuntime = false;
-                          });
-                        },
-                      )
-                    : TextButton(
-                        child: const Text('Start running'),
-                        onPressed: () async {
-                          final Map<String, String>? results =
-                              await showDialog<Map<String, String>>(
-                            context: context,
-                            builder: (_) => SizedBox(
-                              child: RuntimeConfigurationForm(
-                                header:
-                                    "Create a runtime for \"${currentAppComponent!.appName}\"",
-                                appName: currentAppComponent!.appName,
-                              ),
-                            ),
-                          );
-                          if (results != null) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Creating runtime..."),
-                                ),
-                              );
-                            }
-                            try {
-                              await DaemonBridge.createRuntime(
-                                  results['appName']!,
-                                  results['engineVersion']!);
-                              setState(() {
-                                hasRuntime = true;
-                              });
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                        Text("Runtime created successfully!"),
-                                  ),
-                                );
-                              }
-                            } on OrcaException catch (e) {
-                              if (mounted) {
-                                showDialog(
-                                  barrierColor: Colors.black.withOpacity(0.4),
+                FutureBuilder(
+                  future: DaemonBridge.getRuntimes(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.waiting) {
+                      return snapshot.data!.isNotEmpty
+                          ? TextButton(
+                              child: const Text('Stop running'),
+                              onPressed: () async {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Stopping runtime..."),
+                                    ),
+                                  );
+                                }
+                                await DaemonBridge.deleteRuntime(
+                                    currentAppComponent!.appName);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text("Runtime deleted successfully!"),
+                                    ),
+                                  );
+                                }
+                                setState(() {});
+                              },
+                            )
+                          : TextButton(
+                              child: const Text('Start running'),
+                              onPressed: () async {
+                                final Map<String, String>? results =
+                                    await showDialog<Map<String, String>>(
                                   context: context,
-                                  builder: (_) => Center(
-                                    child: Container(
-                                      width: 800,
-                                      height: 800,
-                                      color: OrcaColorSchme.darkPurple,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(40),
-                                        child: Column(
-                                          children: [
-                                            const Text(
-                                                "Runtime creation failed:"),
-                                            const SizedBox(height: 10),
-                                            Text(e.message),
-                                            const SizedBox(height: 10),
-                                            Text(e.payload),
-                                          ],
-                                        ),
-                                      ),
+                                  builder: (_) => SizedBox(
+                                    child: RuntimeConfigurationForm(
+                                      header:
+                                          "Create a runtime for \"${currentAppComponent!.appName}\"",
+                                      appNames: [currentAppComponent!.appName],
                                     ),
                                   ),
                                 );
-                              }
-                            }
-                          } else {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Runtime discarded"),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                      ),
+                                if (results != null) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Creating runtime..."),
+                                      ),
+                                    );
+                                  }
+                                  try {
+                                    await DaemonBridge.createRuntime(
+                                        results['appName']!,
+                                        results['engineVersion']!);
+                                    setState(() {});
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              "Runtime created successfully!"),
+                                        ),
+                                      );
+                                    }
+                                  } on OrcaException catch (e) {
+                                    if (mounted) {
+                                      showDialog(
+                                        barrierColor:
+                                            Colors.black.withOpacity(0.4),
+                                        context: context,
+                                        builder: (_) => Center(
+                                          child: Container(
+                                            width: 800,
+                                            height: 800,
+                                            color: OrcaColorSchme.darkPurple,
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(40),
+                                              child: Column(
+                                                children: [
+                                                  const Text(
+                                                      "Runtime creation failed:"),
+                                                  const SizedBox(height: 10),
+                                                  Text(e.message),
+                                                  const SizedBox(height: 10),
+                                                  Text(e.payload),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Runtime discarded"),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            );
+                    } else {
+                      return const SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: CircularProgressIndicator(),
+                      );
+                    }
+                  },
+                ),
                 if (currentAppComponent != null)
                   FutureBuilder(
                     future:

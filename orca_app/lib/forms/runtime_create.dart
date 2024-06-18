@@ -1,12 +1,12 @@
 part of orca_app;
 
 class RuntimeConfigurationForm extends StatefulWidget {
-  final String appName;
+  final List<String> appNames;
   final String header;
 
   const RuntimeConfigurationForm({
     required this.header,
-    required this.appName,
+    required this.appNames,
     super.key,
   });
   @override
@@ -14,14 +14,13 @@ class RuntimeConfigurationForm extends StatefulWidget {
 }
 
 class RuntimeConfigurationFormState extends State<RuntimeConfigurationForm> {
-  final _formKey = GlobalKey<FormState>();
   late String engineVersion;
+  String? chosenApp;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       child: Form(
-        key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         child: Stack(
           children: [
@@ -47,8 +46,15 @@ class RuntimeConfigurationFormState extends State<RuntimeConfigurationForm> {
                   const SizedBox(height: 60),
                   DropdownButtonFormField<String>(
                     style: const TextStyle(color: OrcaColorSchme.almostWhite),
-                    items: [DropdownMenuItem(child: Text(widget.appName))],
-                    onChanged: (_) {},
+                    items: [
+                      for (final appName in widget.appNames)
+                        DropdownMenuItem(
+                          value: appName,
+                          child: Text(appName),
+                        )
+                    ],
+                    onChanged: (String? app) =>
+                        app != null ? chosenApp = app : null,
                   ),
                   FutureBuilder(
                     future: DaemonBridge.getEngineComponents(),
@@ -95,10 +101,17 @@ class RuntimeConfigurationFormState extends State<RuntimeConfigurationForm> {
                       const SizedBox(width: 20),
                       TextButton(
                         onPressed: () {
-                          Navigator.pop(context, {
-                            'appName': widget.appName,
-                            'engineVersion': engineVersion,
-                          });
+                          if (chosenApp != null) {
+                            Navigator.pop(context, {
+                              'appName': chosenApp!,
+                              'engineVersion': engineVersion,
+                            });
+                          } else {
+                            throw const OrcaException(
+                              message: "App Name cannot be null",
+                              exceptionLevel: ExceptionLevel.error,
+                            );
+                          }
                         },
                         child: const Text("Create"),
                       ),
