@@ -69,10 +69,16 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
 
   SimpleDialog addAppDialog(BuildContext context) {
     return SimpleDialog(
-      title: const Text('Add App'),
+      title: const Text(
+        'Add App',
+        style: TextStyle(color: OrcaColorSchme.lightPink),
+      ),
+      contentPadding: const EdgeInsets.all(20),
       children: [
+        const SizedBox(width: 600),
         TextField(
           controller: addAppTextController,
+          cursorColor: OrcaColorSchme.almostWhite,
           decoration: const InputDecoration(
             labelText: 'Path to root directory of project, or Git repo URL',
           ),
