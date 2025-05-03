@@ -7,15 +7,14 @@ class EnginesView extends StatefulWidget {
   State<StatefulWidget> createState() => EnginesViewState();
 }
 
-class EnginesViewState extends State<EnginesView> with DaemonBridgeAccess {
+class EnginesViewState extends State<EnginesView> {
   final TextEditingController addAppTextController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    return usesDaemonBridge(
-      routeName: '/engines',
-      daemonCall: DaemonBridge.getEngineComponents(),
-      builder: (context, engineComponents) {
+    return FutureBuilder(
+      future: OrcaApiEnginesListEndpoint().get(),
+      builder: (context, snapshot) {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Engines'),
@@ -40,7 +39,7 @@ class EnginesViewState extends State<EnginesView> with DaemonBridgeAccess {
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: List<Widget>.generate(
-                      engineComponents.length,
+                      snapshot.requireData.payload.length,
                       (i) => Align(
                         alignment: Alignment.topLeft,
                         child: Container(
@@ -51,7 +50,8 @@ class EnginesViewState extends State<EnginesView> with DaemonBridgeAccess {
                             alignment: Alignment.topLeft,
                             child: Padding(
                               padding: const EdgeInsets.all(20),
-                              child: Text(engineComponents[i].version),
+                              child:
+                                  Text(snapshot.requireData.payload[i].version),
                             ),
                           ),
                         ),

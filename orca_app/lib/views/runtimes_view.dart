@@ -7,13 +7,12 @@ class RuntimesView extends StatefulWidget {
   State<StatefulWidget> createState() => RuntimesViewState();
 }
 
-class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
+class RuntimesViewState extends State<RuntimesView> {
   @override
   Widget build(BuildContext context) {
-    return usesDaemonBridge(
-        routeName: '/runtimes',
-        daemonCall: DaemonBridge.getRuntimes(),
-        builder: (context, runtimes) {
+    return FutureBuilder(
+        future: OrcaApiRuntimesListEndpoint().get(),
+        builder: (context, snapshot) {
           return Scaffold(
             appBar: AppBar(
               title: const Text('Runtimes'),
@@ -21,17 +20,15 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
                 TextButton(
                   child: const Text('Start running'),
                   onPressed: () async {
-                    final appComponents = await DaemonBridge.getAppComponents();
-                    if (!mounted) return;
+                    final res = await OrcaApiAppsListEndpoint().get();
+                    if (!context.mounted) return;
                     final Map<String, String>? results =
                         await showDialog<Map<String, String>>(
                       context: context,
                       builder: (_) => SizedBox(
                         child: RuntimeConfigurationForm(
                           header: "Configure runtime details",
-                          appNames: [
-                            for (final ac in appComponents) ac.appName
-                          ],
+                          appNames: [for (final ac in res.payload) ac.appName],
                         ),
                       ),
                     );
@@ -44,8 +41,11 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
                         );
                       }
                       try {
-                        await DaemonBridge.createRuntime(
-                            results['appName']!, results['engineVersion']!);
+                        await OrcaApiRuntimesCreateEndpoint()
+                            .post(queryParameters: (
+                          appName: results['appName']!,
+                          engineVersion: results['engineVersion']!,
+                        ));
                         setState(() {});
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -94,7 +94,7 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
                 )
               ],
             ),
-            body: runtimes.isNotEmpty
+            body: snapshot.requireData.payload.isNotEmpty
                 ? GridView.builder(
                     padding: const EdgeInsets.only(
                       left: 20,
@@ -107,9 +107,9 @@ class RuntimesViewState extends State<RuntimesView> with DaemonBridgeAccess {
                       mainAxisSpacing: 20,
                       crossAxisSpacing: 20,
                     ),
-                    itemCount: runtimes.length,
+                    itemCount: snapshot.requireData.payload.length,
                     itemBuilder: (_, i) => RuntimeWindow(
-                      runtime: runtimes[i],
+                      runtime: snapshot.requireData.payload[i],
                       refreshGridView: setState,
                     ),
                   )

@@ -7,15 +7,14 @@ class ServicesView extends StatefulWidget {
   State<StatefulWidget> createState() => ServicesViewState();
 }
 
-class ServicesViewState extends State<ServicesView> with DaemonBridgeAccess {
+class ServicesViewState extends State<ServicesView> {
   final TextEditingController addAppTextController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    return usesDaemonBridge(
-      routeName: '/services',
-      daemonCall: DaemonBridge.getServiceComponents(),
-      builder: (context, serviceComponents) {
+    return FutureBuilder(
+      future: OrcaApiServicesListEndpoint().get(),
+      builder: (context, snapshot) {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Services'),
@@ -40,7 +39,7 @@ class ServicesViewState extends State<ServicesView> with DaemonBridgeAccess {
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: List<Widget>.generate(
-                      serviceComponents.length,
+                      snapshot.requireData.payload.length,
                       (i) => Align(
                         alignment: Alignment.topLeft,
                         child: Container(
@@ -51,7 +50,7 @@ class ServicesViewState extends State<ServicesView> with DaemonBridgeAccess {
                             alignment: Alignment.topLeft,
                             child: Padding(
                               padding: const EdgeInsets.all(20),
-                              child: Text(serviceComponents[i].name),
+                              child: Text(snapshot.requireData.payload[i].name),
                             ),
                           ),
                         ),

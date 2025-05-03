@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:path/path.dart' as path;
+import 'package:http_apis_define/http_apis.dart';
 
 part './orca_configs.dart';
 part './orca_runtime.dart';
@@ -21,6 +22,475 @@ class OrcaCore {
   static late OrcaConfigs orcaConfigs;
   static late final HttpServer server;
   static final Map<OrcaRuntime, Process> runtimes = {};
+  static final API api = API(
+    apiName: 'orca-api',
+    routes: [
+      RouteSegment.routes(
+        routeName: 'apps',
+        routes: [
+          RouteSegment.endpoint(
+            routeName: 'list',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.get],
+              queryParameters: [],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                writeBody(jsonEncode({
+                  "payload": [for (final a in orcaConfigs.apps) a.toJson()],
+                }));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'create',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'source',
+                  desc: "The path of the project root directory.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String source = getParam<String>('source')!;
+                final Directory rootDir = Directory(source);
+                final bool exists = await rootDir.exists();
+                if (!exists) {
+                  raise(HttpStatus.notFound,
+                      "Directory not found on specified path '");
+                  return HttpStatus.notFound;
+                }
+                final bool hasPubspec =
+                    await File(path.join(rootDir.path, 'pubspec.yaml'))
+                        .exists();
+                final bool hasOrcaspec =
+                    await File(path.join(rootDir.path, 'orcaspec.json'))
+                        .exists();
+                if (hasPubspec && hasOrcaspec) {
+                  final AppComponent res;
+                  final String appName = path.split(source).last;
+                  orcaConfigs.apps.add(
+                    res = AppComponent(
+                        appName: appName, path: source, engine: '*'),
+                  );
+                  await File(orcaConfigs.configsPath)
+                      .writeAsString(jsonEncode(orcaConfigs.toJson()));
+                  writeBody(jsonEncode(res.toJson()));
+                  return HttpStatus.ok;
+                } else {
+                  raise(HttpStatus.methodNotAllowed,
+                      "Could not verify the presence of either pubspec, orcaspec, or both.");
+                  return HttpStatus.methodNotAllowed;
+                }
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'delete',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'name',
+                  desc: "The name of the app to delete.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String name = getParam<String>('name')!;
+                final AppComponent? appToDelete = orcaConfigs.apps
+                    .firstWhereOrNull((app) => app.appName == name);
+                if (appToDelete == null) {
+                  raise(HttpStatus.notFound,
+                      "App with specified name '$name' not found.");
+                  return HttpStatus.notFound;
+                } else {
+                  orcaConfigs.apps.remove(appToDelete);
+                  await File(orcaConfigs.configsPath)
+                      .writeAsString(jsonEncode(orcaConfigs.toJson()));
+                  return HttpStatus.ok;
+                }
+              },
+              requiresAuth: false,
+            ),
+          ),
+        ],
+      ),
+      RouteSegment.routes(
+        routeName: 'engines',
+        routes: [
+          RouteSegment.endpoint(
+            routeName: 'list',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.get],
+              queryParameters: [],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                writeBody(jsonEncode({
+                  "payload": [for (final a in orcaConfigs.engines) a.toJson()],
+                }));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'create',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'version',
+                  desc: "The version of the engine.",
+                  cast: (obj) => obj as String,
+                ),
+                Param<String, String>.required(
+                  'source',
+                  desc: "The source path of the engine.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                // Implementation for engine creation
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+        ],
+      ),
+      RouteSegment.routes(
+        routeName: 'services',
+        routes: [
+          RouteSegment.endpoint(
+            routeName: 'list',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.get],
+              queryParameters: [],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                writeBody(jsonEncode({
+                  "payload": [for (final a in orcaConfigs.services) a.toJson()],
+                }));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'create',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'name',
+                  desc: "The name of the service to create.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String name = getParam<String>('name')!;
+                orcaConfigs.services
+                    .add(ServiceComponent(name: name, componentEntries: []));
+                await File(orcaConfigs.configsPath)
+                    .writeAsString(jsonEncode(orcaConfigs.toJson()));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'add',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'name',
+                  desc: "The name of the service to add.",
+                  cast: (obj) => obj as String,
+                ),
+                Param<String, String>.required(
+                  'version',
+                  desc: "The version of the service.",
+                  cast: (obj) => obj as String,
+                ),
+                Param<String, String>.required(
+                  'path',
+                  desc: "The path to the service.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String name = getParam<String>('name')!;
+                final String version = getParam<String>('version')!;
+                final String path = getParam<String>('path')!;
+                final ServiceComponent? service = orcaConfigs.services
+                    .firstWhereOrNull((svc) => svc.name == name);
+                if (service == null) {
+                  raise(HttpStatus.notFound, "Service not found.");
+                  return HttpStatus.notFound;
+                }
+                service.componentEntries.add(
+                  ServiceComponentEntry(version: version, path: path),
+                );
+                await File(orcaConfigs.configsPath)
+                    .writeAsString(jsonEncode(orcaConfigs.toJson()));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+        ],
+      ),
+      RouteSegment.routes(
+        routeName: 'runtimes',
+        routes: [
+          RouteSegment.endpoint(
+            routeName: 'list',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.get],
+              queryParameters: [],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                writeBody(jsonEncode({
+                  "payload": [for (final a in runtimes.entries) a.key.toJson()],
+                }));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'create',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'appName',
+                  desc: "The name of the app for which to create a runtime.",
+                  cast: (obj) => obj as String,
+                ),
+                Param<String, String>.required(
+                  'engineVersion',
+                  desc: "The version of the engine to use.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String appName = getParam<String>('appName')!;
+                final String engineVersion = getParam<String>('engineVersion')!;
+                final OrcaRuntime runtime = OrcaRuntime(
+                  configs: orcaConfigs,
+                  appName: appName,
+                  engineVersion: engineVersion,
+                  services: [],
+                );
+                final Process? proc = await runtime.spawn();
+                if (proc == null) {
+                  raise(HttpStatus.badRequest, 'Runtime creation failed.');
+                  return HttpStatus.badRequest;
+                } else {
+                  runtimes[runtime] = proc;
+                  return HttpStatus.created;
+                }
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'get',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.get],
+              queryParameters: [
+                Param<String, String>.required(
+                  'appName',
+                  desc: "The name of the app to retrieve runtime details for.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String appName = getParam<String>('appName')!;
+                final runtime = runtimes.entries
+                    .firstWhereOrNull((entry) => entry.key.appName == appName);
+                if (runtime == null) {
+                  raise(HttpStatus.notFound, "Runtime not found.");
+                  return HttpStatus.notFound;
+                }
+                writeBody(jsonEncode(runtime.key.toJson()));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'delete',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'appName',
+                  desc: "The name of the app whose runtime is to be deleted.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String appName = getParam<String>('appName')!;
+                final runtime = runtimes.entries
+                    .firstWhereOrNull((entry) => entry.key.appName == appName);
+                if (runtime == null) {
+                  raise(HttpStatus.notFound, "Runtime not found.");
+                  return HttpStatus.notFound;
+                }
+                runtime.value.kill();
+                runtimes.remove(runtime.key);
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+        ],
+      ),
+      RouteSegment.routes(
+        routeName: 'app',
+        routes: [
+          RouteSegment.endpoint(
+            routeName: 'get',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.get],
+              queryParameters: [
+                Param<String, String>.required(
+                  'appName',
+                  desc: "The name of the app to retrieve details for.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String appName = getParam<String>('appName')!;
+                final AppComponent? app = orcaConfigs.apps
+                    .firstWhereOrNull((app) => app.appName == appName);
+                if (app == null) {
+                  raise(HttpStatus.notFound, "App not found.");
+                  return HttpStatus.notFound;
+                } else {
+                  writeBody(jsonEncode(app.toJson()));
+                  return HttpStatus.ok;
+                }
+              },
+              requiresAuth: false,
+            ),
+          ),
+          RouteSegment.endpoint(
+            routeName: 'setup',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: [
+                Param<String, String>.required(
+                  'appName',
+                  desc: "The name of the app to set up.",
+                  cast: (obj) => obj as String,
+                )
+              ],
+              bodyParameters: null,
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required void Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                final String appName = getParam<String>('appName')!;
+                final AppComponent? app = orcaConfigs.apps
+                    .firstWhereOrNull((app) => app.appName == appName);
+                if (app == null) {
+                  raise(HttpStatus.notFound, "App not found.");
+                  return HttpStatus.notFound;
+                }
+                final Directory appDir = Directory(app.path);
+                if (!await appDir.exists()) {
+                  raise(HttpStatus.notFound, "App directory not found.");
+                  return HttpStatus.notFound;
+                }
+                final File orcaspec =
+                    File(path.join(app.path, 'orcaspec.json'));
+                if (!await orcaspec.exists()) {
+                  raise(HttpStatus.badRequest, "Orcaspec file not found.");
+                  return HttpStatus.badRequest;
+                }
+                final Map<String, dynamic> spec =
+                    jsonDecode(await orcaspec.readAsString());
+                writeBody(jsonEncode(spec));
+                return HttpStatus.ok;
+              },
+              requiresAuth: false,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
 
   static Future<void> init(OrcaConfigs configs) async {
     ProcessSignal.sigint.watch().listen((signal) {
@@ -31,124 +501,37 @@ class OrcaCore {
     server = await HttpServer.bind(InternetAddress.anyIPv4, 8082);
     print(
         "Server listening on ${Uri(scheme: 'http', host: server.address.host, port: server.port)}");
-    server.listen((HttpRequest req) async {
-      if (req.uri.pathSegments.isNotEmpty) {
-        if (req.uri.pathSegments.length <= 1) {
-          req.response.fromOrcaResult(
-            OrcaResult.insufficientPathLengthOfRequest(req.uri.pathSegments[0]),
-          );
-        } else {}
-        try {
-          switch (req.uri.pathSegments[0]) {
-            case 'apps':
-              switch (req.uri.pathSegments[1]) {
-                case 'list':
-                  req.response.fromOrcaResult(appsList());
-                  break;
-                case 'create':
-                  req.response.fromOrcaResult(await appsCreate(
-                    req.uri.queryParameters.get<String>('source'),
-                    AppSourceType.local,
-                  ));
-                  break;
-                case 'delete':
-                  req.response.fromOrcaResult(await appsCreate(
-                    req.uri.queryParameters.get<String>('source'),
-                    AppSourceType.local,
-                  ));
-                  break;
-              }
-              break;
-            case 'engines':
-              switch (req.uri.pathSegments[1]) {
-                case 'list':
-                  req.response.fromOrcaResult(enginesList());
-                  break;
-                case 'create':
-                  req.response.fromOrcaResult(await enginesCreate(
-                    req.uri.queryParameters.get<String>('version'),
-                    req.uri.queryParameters.get<String>('source'),
-                  ));
-                  break;
-              }
-              break;
-            case 'services':
-              switch (req.uri.pathSegments[1]) {
-                case 'list':
-                  req.response.fromOrcaResult(servicesList());
-                  break;
-                case 'create':
-                  req.response.fromOrcaResult(await servicesCreate(
-                    req.uri.queryParameters.get<String>('name'),
-                  ));
-                  break;
-                case 'add':
-                  req.response.fromOrcaResult(await servicesAdd(
-                    req.uri.queryParameters.get<String>('name'),
-                    req.uri.queryParameters.get<String>('version'),
-                    req.uri.queryParameters.get<String>('path'),
-                  ));
-                  break;
-              }
-              break;
-            case 'runtimes':
-              switch (req.uri.pathSegments[1]) {
-                case 'list':
-                  req.response.fromOrcaResult(runtimesList());
-                  break;
-                case 'get':
-                  req.response.fromOrcaResult(await runtimesGet(
-                    req.uri.queryParameters.get<String>('appName'),
-                  ));
-                  break;
-                case 'create':
-                  print(req.uri.queryParameters['services']);
-                  req.response.fromOrcaResult(await runtimesCreate(
-                    req.uri.queryParameters.get<String>('appName'),
-                    req.uri.queryParameters.get<String>('engineVersion'),
-                    [],
-                  ));
-                  break;
-                case 'delete':
-                  req.response.fromOrcaResult(runtimesDelete(
-                    req.uri.queryParameters.get<String>('appName'),
-                  ));
-                  break;
-              }
-              break;
-            case 'app':
-              switch (req.uri.pathSegments[1]) {
-                case 'get':
-                  req.response.fromOrcaResult(await appDetails(
-                    req.uri.queryParameters.get<String>('appName'),
-                  ));
-                  break;
-                case 'setup':
-                  req.response.fromOrcaResult(await appSetup(
-                    req.uri.queryParameters.get<String>('appName'),
-                  ));
-                  break;
-              }
-              break;
+    try {
+      server.listen((HttpRequest req) async {
+        if (req.uri.pathSegments.length > 1) {
+          req.response.headers.set('Access-Control-Allow-Origin', '*');
+          try {
+            await api.handleRequest(req, pathSegmentOffset: 1);
+          } on OrcaException catch (e) {
+            req.response
+              ..statusCode = 400
+              ..headers.set('Access-Control-Allow-Origin', '*')
+              ..write(
+                jsonEncode({
+                  'statusCode': 400,
+                  ...e.toJson(),
+                }),
+              );
           }
-        } on OrcaException catch (e) {
+        } else {
           req.response
-            ..statusCode = 400
             ..headers.set('Access-Control-Allow-Origin', '*')
-            ..write(
-              jsonEncode({
-                'statusCode': 400,
-                ...e.toJson(),
-              }),
-            );
+            ..statusCode = 200;
         }
-      } else {
-        req.response
-          ..headers.set('Access-Control-Allow-Origin', '*')
-          ..statusCode = 200;
-      }
-      req.response.close();
-    });
+        await req.response.close();
+      });
+    } catch (e, st) {
+      print("FATAL ERROR CAUGHT");
+      print(e);
+      print(st);
+      print('===');
+      deinit();
+    }
   }
 
   static void deinit() {
@@ -212,7 +595,7 @@ class OrcaCore {
         if (hasPubspec && hasOrcaspec) {
           final String appName = path.split(source).last;
           orcaConfigs.apps.add(
-            AppComponent(appName: appName, path: source),
+            AppComponent(appName: appName, path: source, engine: '*'),
           );
           await File(orcaConfigs.configsPath)
               .writeAsString(jsonEncode(orcaConfigs.toJson()));
@@ -279,13 +662,15 @@ class OrcaCore {
   static Future<OrcaResult> runtimesCreate(
     String appName,
     String engineVersion,
-    List<String> serviceNames,
   ) async {
+    final OrcaResult appDetailsResult = await appDetails(appName);
+    if (appDetailsResult.exception != null) return appDetailsResult;
+
     final OrcaRuntime orcaRuntime = OrcaRuntime(
       configs: orcaConfigs,
       appName: appName,
       engineVersion: engineVersion,
-      serviceNames: serviceNames,
+      services: appDetailsResult.payload['services'].cast<JSON>(),
     );
     final Process? proc = await orcaRuntime.spawn();
     if (proc == null) {
@@ -298,7 +683,6 @@ class OrcaCore {
         ),
       );
     } else {
-      print("PID: ${proc.pid}");
       runtimes[orcaRuntime] = proc;
       return OrcaResult(statusCode: 200);
     }
@@ -351,8 +735,6 @@ class OrcaCore {
             File(path.join(appComponent.path, 'orcaspec.json'));
         if (await orcaspec.exists()) {
           appDetails.addAll(jsonDecode(await orcaspec.readAsString()));
-        } else {
-          print('no orcaspec');
         }
         return OrcaResult(statusCode: 200, payload: appDetails);
       } else {

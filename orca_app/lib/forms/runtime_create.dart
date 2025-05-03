@@ -57,14 +57,15 @@ class RuntimeConfigurationFormState extends State<RuntimeConfigurationForm> {
                         app != null ? chosenApp = app : null,
                   ),
                   FutureBuilder(
-                    future: DaemonBridge.getEngineComponents(),
+                    future: OrcaApiEnginesListEndpoint().get(),
                     builder: (ctx, snapshot) {
                       if (snapshot.connectionState == ConnectionState.done) {
                         return DropdownButtonFormField<String>(
                           style: const TextStyle(
                               color: OrcaColorSchme.almostWhite),
                           items: [
-                            for (EngineComponent ec in snapshot.data!)
+                            for (EngineComponent ec
+                                in snapshot.requireData.payload)
                               DropdownMenuItem(
                                 value: ec.version,
                                 child: Wrap(

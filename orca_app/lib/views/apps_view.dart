@@ -7,15 +7,14 @@ class AppsView extends StatefulWidget {
   State<StatefulWidget> createState() => AppsViewState();
 }
 
-class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
+class AppsViewState extends State<AppsView> {
   final TextEditingController addAppTextController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    return usesDaemonBridge(
-      routeName: '/apps',
-      daemonCall: DaemonBridge.getAppComponents(),
-      builder: (context, appComponents) {
+    return FutureBuilder(
+      future: OrcaAPI.orcaApiAppsList.get(),
+      builder: (context, snapshot) {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Apps'),
@@ -40,7 +39,7 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: List<Widget>.generate(
-                      appComponents.length,
+                      snapshot.requireData.payload.length,
                       (i) => Align(
                         alignment: Alignment.topLeft,
                         child: Container(
@@ -51,7 +50,8 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
                             alignment: Alignment.topLeft,
                             child: Padding(
                               padding: const EdgeInsets.all(20),
-                              child: Text(appComponents[i].appName),
+                              child:
+                                  Text(snapshot.requireData.payload[i].appName),
                             ),
                           ),
                         ),
@@ -87,10 +87,9 @@ class AppsViewState extends State<AppsView> with DaemonBridgeAccess {
         TextButton(
           onPressed: () async {
             try {
-              final String appName =
-                  (await DaemonBridge.appsCreate(addAppTextController.text))
-                      .payload['appName'];
-              await DaemonBridge.appSetup(appName);
+              await OrcaApiAppsCreateEndpoint()
+                  .post(queryParameters: (source: addAppTextController.text));
+
               if (mounted) Navigator.of(context).pop();
             } on OrcaException catch (e) {
               if (mounted) {

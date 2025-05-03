@@ -105,8 +105,10 @@ class RuntimeWindowState extends State<RuntimeWindow> {
                   } else {
                     return (logs
                       ..clear()
-                      ..addAll((await DaemonBridge.getRuntime(
-                              widget.runtime.appName))
+                      ..addAll((await OrcaApiRuntimesGetEndpoint().get(
+                              queryParameters: (
+                            appName: widget.runtime.appName
+                          )))
                           .logs));
                   }
                 }(),
@@ -143,7 +145,8 @@ class RuntimeWindowState extends State<RuntimeWindow> {
               left: 10,
               child: TextButton(
                 onPressed: () async {
-                  await DaemonBridge.deleteRuntime(widget.runtime.appName);
+                  await OrcaApiRuntimesDeleteEndpoint().delete(
+                      queryParameters: (appName: widget.runtime.appName));
                   widget.refreshGridView(() {});
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

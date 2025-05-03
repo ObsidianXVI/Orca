@@ -43,20 +43,41 @@ abstract class OrcaConfigComponent {
 class AppComponent extends OrcaConfigComponent {
   final String appName;
   final String path;
+  final String engine;
+  final List<ServiceComponent> services;
 
   const AppComponent({
     required this.appName,
     required this.path,
+    required this.engine,
+    this.services = const [],
   });
 
-  AppComponent.fromJson(JSON jsonConfigs)
-      : appName = jsonConfigs['name'],
-        path = jsonConfigs['path'];
+  static AppComponent fromJson(JSON jsonConfigs) {
+    final String appName = jsonConfigs['name'];
+    final String path = jsonConfigs['path'];
+    final String engine = jsonConfigs['engine'];
+    final List<ServiceComponent> services = [];
+    for (int i = 0; i < jsonConfigs['services'].length; i++) {
+      services.add(ServiceComponent(
+        name: jsonConfigs['services'][i]['name'],
+        componentEntries: [],
+      ));
+    }
+    return AppComponent(
+      appName: appName,
+      path: path,
+      engine: engine,
+      services: services,
+    );
+  }
 
   @override
   JSON toJson() => {
         'name': appName,
         'path': path,
+        'engine': engine,
+        'services': services.map((svc) => svc.toJson()).toList(),
       };
 
   @override
