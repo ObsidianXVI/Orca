@@ -2,21 +2,7 @@
 
 Orchestrate the deployment, installation, maintenance and runtimes of locally-hosted Flutter web apps.
 
-## Install
+## Why Orca?
+Orca is a Flutter Web application orchestrator, but what is its purpose? Flutter Web apps can be easily developed and used across all platforms, but not all web apps need to be hosted on a server. For single-user applications, locally hosting both the application and user data is more than sufficient. However, it can be difficult for users (especially those not from a technical background) to manage applications, dependencies, and troubleshoot web apps.
 
-1. Download this Git repo
-2. Unzip and move the directory to wherever you like
-3. Copy the path to the directory
-4. Follow the succeeding platform-specific instructions to finish setup
-
-### For Mac
-
-If you don't have a `.bash_profile` located in your HOME directory execute this first;
-```
-touch ~/.bash_profile (if does not exist)
-```
-Then, finish with this step:
-```
-echo "export ORCA_PATH=\"copiedPathToOrca\"" >> ~/.bash_profile
-source ~/.bash_profile
-```
+Orca provides a simple interface from which the user can configure new web apps, select the dependencies it needs, and configure its access to system resources such as the file system. After that, applications can started/stopped at the click of the button, or even through some form of automation. Application logs are conveniently streamed in realtime to the Orca interface, so users always have a birds-eye view of their applications.

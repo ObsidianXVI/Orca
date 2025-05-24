@@ -1,2 +1,10 @@
 # Private Stuff
 orca_configs.json
+secrets.dart
+
+# DB Files
+*.lock
+*.hive
+
+# The usual
+.DS_Store

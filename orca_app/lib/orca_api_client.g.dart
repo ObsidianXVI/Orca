@@ -22,7 +22,7 @@ class OrcaAPI {
 }
 
 class OrcaApiAppsListEndpoint {
-  Future<({List<AppComponent> payload})> get() async {
+  Future<({List<OrcaSpec> payload})> get() async {
     final res = jsonDecode((await OrcaAPI.client.get(
       Uri.http(
         'localhost:8082',
@@ -33,14 +33,14 @@ class OrcaApiAppsListEndpoint {
         .body);
     return (
       payload: [
-        for (final a in res['payload']) AppComponent.fromJson(a),
+        for (final a in res['payload']) OrcaSpec.fromJson(a),
       ]
     );
   }
 }
 
 class OrcaApiAppsCreateEndpoint {
-  Future<AppComponent> post({
+  Future<OrcaSpec> post({
     required ({
       String source,
     }) queryParameters,
@@ -55,7 +55,7 @@ class OrcaApiAppsCreateEndpoint {
       ),
     ))
         .body);
-    return AppComponent.fromJson(res);
+    return OrcaSpec.fromJson(res);
   }
 }
 
@@ -242,12 +242,12 @@ class OrcaApiRuntimesDeleteEndpoint {
 }
 
 class OrcaApiAppGetEndpoint {
-  Future<AppComponent> get({
+  Future<OrcaSpec> get({
     required ({
       String appName,
     }) queryParameters,
   }) async {
-    return AppComponent.fromJson(jsonDecode((await OrcaAPI.client.get(
+    return OrcaSpec.fromJson(jsonDecode((await OrcaAPI.client.get(
       Uri.http(
         'localhost:8082',
         'orca-api/app/get',

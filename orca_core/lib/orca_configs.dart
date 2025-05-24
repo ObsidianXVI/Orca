@@ -1,70 +1,53 @@
 part of orca_core;
 
-class OrcaConfigs {
-  final List<AppComponent> apps;
-  final List<EngineComponent> engines;
-  final List<ServiceComponent> services;
-  final String configsPath;
+/// A configuration component that is available on the user's side. The [id] property
+/// is used when the components are stored in hive as key-value pairs.
+abstract class OrcaStorable {
+  const OrcaStorable();
 
-  const OrcaConfigs({
-    required this.apps,
-    required this.engines,
-    required this.services,
-    required this.configsPath,
-  });
-
-  OrcaConfigs.fromJson(
-    JSON jsonConfigs, {
-    required this.configsPath,
-  })  : apps = (jsonConfigs['apps'] as List)
-            .map((json) => AppComponent.fromJson(json))
-            .toList(),
-        engines = (jsonConfigs['engines'] as List)
-            .map((e) => EngineComponent.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        services = (jsonConfigs['services'] as List)
-            .map((json) => ServiceComponent.fromJson(json))
-            .toList();
-
-  JSON toJson() => {
-        'apps': apps.map((e) => e.toJson()).toList(),
-        'engines': engines.map((e) => e.toJson()).toList(),
-        'services': services.map((e) => e.toJson()).toList(),
-        'configsPath': configsPath,
-      };
-}
-
-abstract class OrcaConfigComponent {
-  const OrcaConfigComponent();
+  String get id;
 
   JSON toJson();
 }
 
-class AppComponent extends OrcaConfigComponent {
+/// The component of the orcaspec that specifies the app's requirements
+@HiveType(typeId: 0)
+class OrcaSpec extends OrcaStorable {
+  /// The app's display name.
+  @HiveField(0)
   final String appName;
+
+  /// The project directory's path on the machine.
+  @HiveField(1)
   final String path;
+
+  /// The version of the Flutter SDK to use. '*' means any version.
+  @HiveField(2)
   final String engine;
+
+  /// The list of services the app requires access to.
+  @HiveField(3)
   final List<ServiceComponent> services;
 
-  const AppComponent({
+  @override
+  String get id => appName;
+
+  const OrcaSpec({
     required this.appName,
     required this.path,
     required this.engine,
     this.services = const [],
   });
 
-  static AppComponent fromJson(JSON jsonConfigs) {
+  static OrcaSpec fromJson(JSON jsonConfigs) {
     final String appName = jsonConfigs['name'];
     final String path = jsonConfigs['path'];
     final String engine = jsonConfigs['engine'];
     final List<ServiceComponent> services = [];
     for (int i = 0; i < jsonConfigs['services'].length; i++) {
-      services.add(ServiceComponent(
-        name: jsonConfigs['services'][i]['name'],
-        componentEntries: [],
-      ));
+      services.add(ServiceComponent.fromJson(jsonConfigs['services'][i]));
     }
-    return AppComponent(
+    return OrcaSpec(
       appName: appName,
       path: path,
       engine: engine,
@@ -81,15 +64,18 @@ class AppComponent extends OrcaConfigComponent {
       };
 
   @override
-  bool operator ==(Object? other) =>
-      (other is AppComponent) && other.appName == appName && other.path == path;
+  bool operator ==(Object other) =>
+      (other is OrcaSpec) && other.appName == appName && other.path == path;
 
   @override
   int get hashCode => "$appName$path".hashCode;
 }
 
-class EngineComponent extends OrcaConfigComponent {
+@HiveType(typeId: 2)
+class EngineComponent extends OrcaStorable {
+  @HiveField(0)
   final String version;
+  @HiveField(1)
   final String path;
 
   const EngineComponent({
@@ -102,53 +88,62 @@ class EngineComponent extends OrcaConfigComponent {
         path = jsonConfigs['path'];
 
   @override
+  String get id => 'engine-$version--$path';
+
+  @override
   JSON toJson() => {
         'version': version,
         'path': path,
       };
 }
 
-class ServiceComponent extends OrcaConfigComponent {
+@HiveType(typeId: 1)
+class ServiceComponent extends OrcaStorable {
+  @HiveField(0)
   final String name;
-  final List<ServiceComponentEntry> componentEntries;
+  @HiveField(1)
+  final String version;
+  @HiveField(2)
+  final List<ServicePermissionEntry> permissionEntries;
 
   const ServiceComponent({
     required this.name,
-    required this.componentEntries,
+    required this.version,
+    required this.permissionEntries,
   });
 
   static ServiceComponent fromJson(JSON jsonConfigs) {
+    print(jsonConfigs);
     final String name = jsonConfigs['name'];
-    final List<ServiceComponentEntry> entries = [];
-    for (int i = 0; i < jsonConfigs['versions'].length; i++) {
-      entries.add(ServiceComponentEntry(
-        version: jsonConfigs['versions'][i],
-        path: jsonConfigs['paths'][i],
-      ));
+    final String version = jsonConfigs['version'];
+    final List<ServicePermissionEntry> permissions = [];
+    for (int i = 0; i < jsonConfigs['permissions'].length; i++) {
+      permissions.add(ServicePermissionEntry(jsonConfigs['permissions'][i]));
     }
-    return ServiceComponent(name: name, componentEntries: entries);
+    return ServiceComponent(
+      name: name,
+      version: version,
+      permissionEntries: permissions,
+    );
   }
 
   @override
-  JSON toJson() {
-    final List<String> versions = [for (final e in componentEntries) e.version];
-    final List<String> paths = [for (final e in componentEntries) e.path];
-    return {
-      'name': name,
-      'versions': versions,
-      'paths': paths,
-    };
-  }
+  String get id => '$name-$version';
+
+  @override
+  JSON toJson() => {
+        'name': name,
+        'version': version,
+        'permissions': [for (final e in permissionEntries) e.permId],
+      };
 }
 
-class ServiceComponentEntry {
-  final String version;
-  final String path;
+@HiveType(typeId: 4)
+class ServicePermissionEntry {
+  @HiveField(0)
+  final String permId;
 
-  const ServiceComponentEntry({
-    required this.version,
-    required this.path,
-  });
+  const ServicePermissionEntry(this.permId);
 }
 
 class OrcaAppConfig {

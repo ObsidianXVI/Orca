@@ -35,7 +35,7 @@ class OrcaApp extends StatefulWidget {
 }
 
 class OrcaAppState extends State<OrcaApp> {
-  AppComponent? currentAppComponent;
+  OrcaSpec? currentAppComponent;
 
   @override
   Widget build(BuildContext context) {
