@@ -4,8 +4,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:path/path.dart' as path;
+import 'package:hive/hive.dart';
+
 import 'package:http_apis_define/http_apis.dart';
 
+part 'orca.g.dart';
 part './orca_configs.dart';
 part './orca_runtime.dart';
 part './exceptions.dart';
@@ -19,9 +22,13 @@ enum AppSourceType {
 }
 
 class OrcaCore {
-  static late OrcaConfigs orcaConfigs;
+  static late Box<OrcaSpec> apps;
+  static late Box<ServiceComponent> services;
+  static late Box<EngineComponent> engines;
+  static late Box<OrcaRuntime> runtimes;
+  static late Box<Map<String, dynamic>> configs;
   static late final HttpServer server;
-  static final Map<OrcaRuntime, Process> runtimes = {};
+  static final Map<String, Process> processes = {};
   static final API api = API(
     apiName: 'orca-api',
     routes: [
@@ -40,7 +47,7 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
-                  "payload": [for (final a in orcaConfigs.apps) a.toJson()],
+                  "payload": [for (final a in apps.values) a.toJson()],
                 }));
                 return HttpStatus.ok;
               },
@@ -79,20 +86,17 @@ class OrcaCore {
                     await File(path.join(rootDir.path, 'orcaspec.json'))
                         .exists();
                 if (hasPubspec && hasOrcaspec) {
-                  final AppComponent res;
+                  final OrcaSpec res;
                   final String appName = path.split(source).last;
-                  orcaConfigs.apps.add(
-                    res = AppComponent(
-                        appName: appName, path: source, engine: '*'),
-                  );
-                  await File(orcaConfigs.configsPath)
-                      .writeAsString(jsonEncode(orcaConfigs.toJson()));
+                  res = OrcaSpec(appName: appName, path: source, engine: '*');
+                  apps.put(res.id, res);
+
                   writeBody(jsonEncode(res.toJson()));
                   return HttpStatus.ok;
                 } else {
-                  raise(HttpStatus.methodNotAllowed,
-                      "Could not verify the presence of either pubspec, orcaspec, or both.");
-                  return HttpStatus.methodNotAllowed;
+                  raise(HttpStatus.notFound,
+                      "Insufficient config files at target project directory: orcaspec ${hasOrcaspec ? '✅' : '❌'}, pubspec ${hasPubspec ? '✅' : '❌'}.");
+                  return HttpStatus.notFound;
                 }
               },
               requiresAuth: false,
@@ -116,17 +120,13 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 final String name = getParam<String>('name')!;
-                final AppComponent? appToDelete = orcaConfigs.apps
-                    .firstWhereOrNull((app) => app.appName == name);
-                if (appToDelete == null) {
+                if (apps.containsKey(name)) {
+                  apps.delete(name);
+                  return HttpStatus.ok;
+                } else {
                   raise(HttpStatus.notFound,
                       "App with specified name '$name' not found.");
                   return HttpStatus.notFound;
-                } else {
-                  orcaConfigs.apps.remove(appToDelete);
-                  await File(orcaConfigs.configsPath)
-                      .writeAsString(jsonEncode(orcaConfigs.toJson()));
-                  return HttpStatus.ok;
                 }
               },
               requiresAuth: false,
@@ -149,7 +149,7 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
-                  "payload": [for (final a in orcaConfigs.engines) a.toJson()],
+                  "payload": [for (final e in engines.values) e.toJson()],
                 }));
                 return HttpStatus.ok;
               },
@@ -201,7 +201,7 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
-                  "payload": [for (final a in orcaConfigs.services) a.toJson()],
+                  "payload": [for (final s in services.values) s.toJson()],
                 }));
                 return HttpStatus.ok;
               },
@@ -217,42 +217,10 @@ class OrcaCore {
                   'name',
                   desc: "The name of the service to create.",
                   cast: (obj) => obj as String,
-                )
-              ],
-              bodyParameters: null,
-              handleRequest: ({
-                required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
-                required void Function(String) writeBody,
-              }) async {
-                final String name = getParam<String>('name')!;
-                orcaConfigs.services
-                    .add(ServiceComponent(name: name, componentEntries: []));
-                await File(orcaConfigs.configsPath)
-                    .writeAsString(jsonEncode(orcaConfigs.toJson()));
-                return HttpStatus.ok;
-              },
-              requiresAuth: false,
-            ),
-          ),
-          RouteSegment.endpoint(
-            routeName: 'add',
-            endpoint: Endpoint(
-              endpointTypes: [EndpointType.post],
-              queryParameters: [
-                Param<String, String>.required(
-                  'name',
-                  desc: "The name of the service to add.",
-                  cast: (obj) => obj as String,
                 ),
                 Param<String, String>.required(
                   'version',
-                  desc: "The version of the service.",
-                  cast: (obj) => obj as String,
-                ),
-                Param<String, String>.required(
-                  'path',
-                  desc: "The path to the service.",
+                  desc: "The version number of the service.",
                   cast: (obj) => obj as String,
                 )
               ],
@@ -263,19 +231,12 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 final String name = getParam<String>('name')!;
-                final String version = getParam<String>('version')!;
-                final String path = getParam<String>('path')!;
-                final ServiceComponent? service = orcaConfigs.services
-                    .firstWhereOrNull((svc) => svc.name == name);
-                if (service == null) {
-                  raise(HttpStatus.notFound, "Service not found.");
-                  return HttpStatus.notFound;
-                }
-                service.componentEntries.add(
-                  ServiceComponentEntry(version: version, path: path),
+                final svcComp = ServiceComponent(
+                  name: name,
+                  permissionEntries: [],
+                  version: getParam('version'),
                 );
-                await File(orcaConfigs.configsPath)
-                    .writeAsString(jsonEncode(orcaConfigs.toJson()));
+                services.put(svcComp.id, svcComp);
                 return HttpStatus.ok;
               },
               requiresAuth: false,
@@ -298,7 +259,7 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
-                  "payload": [for (final a in runtimes.entries) a.key.toJson()],
+                  "payload": [for (final a in runtimes.values) a.toJson()],
                 }));
                 return HttpStatus.ok;
               },
@@ -319,7 +280,12 @@ class OrcaCore {
                   'engineVersion',
                   desc: "The version of the engine to use.",
                   cast: (obj) => obj as String,
-                )
+                ),
+                Param<OrcaSpec, JSON>.required(
+                  'orcaspec',
+                  desc: 'Orcaspec for the app to be run.',
+                  cast: (obj) => OrcaSpec.fromJson(obj as JSON),
+                ),
               ],
               bodyParameters: null,
               handleRequest: ({
@@ -330,7 +296,7 @@ class OrcaCore {
                 final String appName = getParam<String>('appName')!;
                 final String engineVersion = getParam<String>('engineVersion')!;
                 final OrcaRuntime runtime = OrcaRuntime(
-                  configs: orcaConfigs,
+                  orcaSpec: getParam('orcaspec'),
                   appName: appName,
                   engineVersion: engineVersion,
                   services: [],
@@ -340,7 +306,7 @@ class OrcaCore {
                   raise(HttpStatus.badRequest, 'Runtime creation failed.');
                   return HttpStatus.badRequest;
                 } else {
-                  runtimes[runtime] = proc;
+                  processes[runtime.id] = proc;
                   return HttpStatus.created;
                 }
               },
@@ -365,13 +331,13 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
-                final runtime = runtimes.entries
-                    .firstWhereOrNull((entry) => entry.key.appName == appName);
+                final runtime = runtimes.values
+                    .firstWhereOrNull((entry) => entry.appName == appName);
                 if (runtime == null) {
                   raise(HttpStatus.notFound, "Runtime not found.");
                   return HttpStatus.notFound;
                 }
-                writeBody(jsonEncode(runtime.key.toJson()));
+                writeBody(jsonEncode(runtime.toJson()));
                 return HttpStatus.ok;
               },
               requiresAuth: false,
@@ -395,14 +361,14 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
-                final runtime = runtimes.entries
-                    .firstWhereOrNull((entry) => entry.key.appName == appName);
+                final runtime = runtimes.values
+                    .firstWhereOrNull((entry) => entry.appName == appName);
                 if (runtime == null) {
                   raise(HttpStatus.notFound, "Runtime not found.");
                   return HttpStatus.notFound;
                 }
-                runtime.value.kill();
-                runtimes.remove(runtime.key);
+                processes[runtime.id]?.kill();
+                runtimes.delete(runtime.id);
                 return HttpStatus.ok;
               },
               requiresAuth: false,
@@ -431,13 +397,11 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
-                final AppComponent? app = orcaConfigs.apps
-                    .firstWhereOrNull((app) => app.appName == appName);
-                if (app == null) {
+                if (!apps.containsKey(appName)) {
                   raise(HttpStatus.notFound, "App not found.");
                   return HttpStatus.notFound;
                 } else {
-                  writeBody(jsonEncode(app.toJson()));
+                  writeBody(jsonEncode(apps.get(appName)!.toJson()));
                   return HttpStatus.ok;
                 }
               },
@@ -462,12 +426,11 @@ class OrcaCore {
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
-                final AppComponent? app = orcaConfigs.apps
-                    .firstWhereOrNull((app) => app.appName == appName);
-                if (app == null) {
+                if (!apps.containsKey(appName)) {
                   raise(HttpStatus.notFound, "App not found.");
                   return HttpStatus.notFound;
                 }
+                final OrcaSpec app = apps.get(appName)!;
                 final Directory appDir = Directory(app.path);
                 if (!await appDir.exists()) {
                   raise(HttpStatus.notFound, "App directory not found.");
@@ -492,12 +455,23 @@ class OrcaCore {
     ],
   );
 
-  static Future<void> init(OrcaConfigs configs) async {
+  static Future<void> init() async {
     ProcessSignal.sigint.watch().listen((signal) {
       print("SIGINT detected, gracefully shutting down daemon...");
       deinit();
     });
-    orcaConfigs = configs;
+
+    apps = await Hive.openBox<OrcaSpec>('apps', path: './');
+    services = await Hive.openBox<ServiceComponent>('services', path: './');
+    engines = await Hive.openBox<EngineComponent>('engines', path: './');
+    runtimes = await Hive.openBox<OrcaRuntime>('runtimes', path: './');
+    Hive
+      ..registerAdapter(OrcaSpecAdapter())
+      ..registerAdapter(EngineComponentAdapter())
+      ..registerAdapter(ServiceComponentAdapter())
+      ..registerAdapter(ServicePermissionEntryAdapter())
+      ..registerAdapter(OrcaRuntimeAdapter());
+
     server = await HttpServer.bind(InternetAddress.anyIPv4, 8082);
     print(
         "Server listening on ${Uri(scheme: 'http', host: server.address.host, port: server.port)}");
@@ -534,14 +508,22 @@ class OrcaCore {
     }
   }
 
-  static void deinit() {
+  static void deinit() async {
     print("Teriminating ${runtimes.length} remaining runtimes...");
-
-    for (MapEntry<OrcaRuntime, Process> runtime in runtimes.entries) {
-      print("  Terminating runtime for '${runtime.key.appName}'...");
-      runtime.value.kill();
+    for (OrcaRuntime runtime in runtimes.values) {
+      print("  Terminating runtime for '${runtime.appName}'...");
+      processes[runtime.id]?.kill();
       print("    Done");
     }
+
+    print("Shutting down server...");
+    await server.close();
+
+    print("Shutting down database...");
+    await apps.close();
+    await services.close();
+    await engines.close();
+    await runtimes.close();
 
     print("✅ Daemon shutdown sequence completed!");
     exit(0);
@@ -550,25 +532,24 @@ class OrcaCore {
   /// Lists all the available app configurations.
   static OrcaResult appsList() => OrcaResult(
         statusCode: 200,
-        payload: [for (final a in orcaConfigs.apps) a.toJson()],
+        payload: [for (final a in apps.values) a.toJson()],
       );
 
   /// Lists all the available app configurations.
   static OrcaResult enginesList() => OrcaResult(
         statusCode: 200,
-        payload: [for (final a in orcaConfigs.engines) a.toJson()],
+        payload: [for (final a in engines.values) a.toJson()],
       );
 
   /// Lists all available service configurations.
   static OrcaResult servicesList() => OrcaResult(
         statusCode: 200,
-        payload: [for (final a in orcaConfigs.services) a.toJson()],
+        payload: [for (final a in services.values) a.toJson()],
       );
 
   /// Lists all available runtimes.
   static OrcaResult runtimesList() => OrcaResult(
-      statusCode: 200,
-      payload: [for (final a in runtimes.entries) a.key.toJson()]);
+      statusCode: 200, payload: [for (final a in runtimes.values) a.toJson()]);
 
   /// Creates an app configuration with the given path/URL and app type.
   /// Currently only [AppSourceType.local] is allowed.
@@ -594,11 +575,9 @@ class OrcaCore {
             await File(path.join(rootDir.path, 'orcaspec.json')).exists();
         if (hasPubspec && hasOrcaspec) {
           final String appName = path.split(source).last;
-          orcaConfigs.apps.add(
-            AppComponent(appName: appName, path: source, engine: '*'),
-          );
-          await File(orcaConfigs.configsPath)
-              .writeAsString(jsonEncode(orcaConfigs.toJson()));
+          final OrcaSpec res =
+              OrcaSpec(appName: appName, path: source, engine: '*');
+          apps.put(res.id, res);
           return OrcaResult(statusCode: 200, payload: {'appName': appName});
         } else {
           return OrcaResult(
@@ -623,9 +602,7 @@ class OrcaCore {
   }
 
   static Future<OrcaResult> appsDelete(String name) async {
-    final AppComponent? appToDelete =
-        orcaConfigs.apps.firstWhereOrNull((app) => app.appName == name);
-    if (appToDelete == null) {
+    if (!apps.containsKey(name)) {
       return OrcaResult(
         statusCode: 404,
         exception: OrcaException(
@@ -634,9 +611,7 @@ class OrcaCore {
         ),
       );
     } else {
-      orcaConfigs.apps.remove(appToDelete);
-      await File(orcaConfigs.configsPath)
-          .writeAsString(jsonEncode(orcaConfigs.toJson()));
+      apps.delete(name);
       return OrcaResult(statusCode: 200);
     }
   }
@@ -660,14 +635,12 @@ class OrcaCore {
 
   /// Creates a runtime.
   static Future<OrcaResult> runtimesCreate(
-    String appName,
-    String engineVersion,
-  ) async {
+      String appName, String engineVersion, OrcaSpec orcaspec) async {
     final OrcaResult appDetailsResult = await appDetails(appName);
     if (appDetailsResult.exception != null) return appDetailsResult;
 
     final OrcaRuntime orcaRuntime = OrcaRuntime(
-      configs: orcaConfigs,
+      orcaSpec: orcaspec,
       appName: appName,
       engineVersion: engineVersion,
       services: appDetailsResult.payload['services'].cast<JSON>(),
@@ -683,16 +656,16 @@ class OrcaCore {
         ),
       );
     } else {
-      runtimes[orcaRuntime] = proc;
+      processes[orcaRuntime.id] = proc;
       return OrcaResult(statusCode: 200);
     }
   }
 
   static OrcaResult runtimesDelete(String appName) {
-    for (MapEntry<OrcaRuntime, Process> rt in runtimes.entries) {
-      if (rt.key.appName == appName) {
-        rt.value.kill();
-        runtimes.remove(rt.key);
+    for (OrcaRuntime rt in runtimes.values) {
+      if (rt.appName == appName) {
+        processes[rt.id]?.kill();
+        runtimes.delete(rt.id);
         return OrcaResult(statusCode: 200);
       }
     }
@@ -708,9 +681,9 @@ class OrcaCore {
   }
 
   static Future<OrcaResult> runtimesGet(String appName) async {
-    for (MapEntry<OrcaRuntime, Process> rt in runtimes.entries) {
-      if (rt.key.appName == appName) {
-        return OrcaResult(statusCode: 200, payload: rt.key.toJson());
+    for (OrcaRuntime rt in runtimes.values) {
+      if (rt.appName == appName) {
+        return OrcaResult(statusCode: 200, payload: rt.toJson());
       }
     }
 
@@ -725,14 +698,12 @@ class OrcaCore {
   }
 
   static Future<OrcaResult> appDetails(String appName) async {
-    final AppComponent? appComponent =
-        orcaConfigs.apps.firstWhereOrNull((app) => app.appName == appName);
-    if (appComponent != null) {
-      final Directory appDir = Directory(appComponent.path);
+    if (apps.containsKey(appName)) {
+      final OrcaSpec app = apps.get(appName)!;
+      final Directory appDir = Directory(app.path);
       if (await appDir.exists()) {
         final Map<String, dynamic> appDetails = {};
-        final File orcaspec =
-            File(path.join(appComponent.path, 'orcaspec.json'));
+        final File orcaspec = File(path.join(app.path, 'orcaspec.json'));
         if (await orcaspec.exists()) {
           appDetails.addAll(jsonDecode(await orcaspec.readAsString()));
         }
@@ -742,7 +713,7 @@ class OrcaCore {
           statusCode: 404,
           exception: OrcaException(
             message:
-                "App with name '$appName' could not be found at path '${appComponent.path}'.",
+                "App with name '$appName' could not be found at path '${app.path}'.",
             exceptionLevel: ExceptionLevel.error,
           ),
         );
@@ -759,25 +730,24 @@ class OrcaCore {
   }
 
   static Future<OrcaResult> appSetup(String appName) async {
-    final AppComponent? appComponent =
-        orcaConfigs.apps.firstWhereOrNull((app) => app.appName == appName);
-    if (appComponent != null) {
-      final Directory appDir = Directory(appComponent.path);
+    if (apps.containsKey(appName)) {
+      final OrcaSpec app = apps.get(appName)!;
+      final Directory appDir = Directory(app.path);
       if (await appDir.exists()) {
-        final File orcaspec = File("${appComponent.path}/orcaspec.json");
+        final File orcaspec = File("${app.path}/orcaspec.json");
         final String engineVersion;
-        final List<JSON> services;
+        final List<JSON> svcs;
         if (await orcaspec.exists()) {
           final JSON orcaspecData = jsonDecode(await orcaspec.readAsString());
           engineVersion = orcaspecData['engine'];
-          services = orcaspecData['services'].cast<JSON>();
+          svcs = orcaspecData['services'].cast<JSON>();
         } else {
           engineVersion = '*';
-          services = [];
+          svcs = [];
         }
-        for (final svc in services) {
+        for (final svc in svcs) {
           if (svc['name'] == 'firebase') {
-            final ServiceComponent? fbComp = orcaConfigs.services
+            final ServiceComponent? fbComp = services.values
                 .firstWhereOrNull((comp) => comp.name == 'firebase');
             if (fbComp == null) {
               return OrcaResult(
@@ -789,7 +759,7 @@ class OrcaCore {
                 ),
               );
             } else {
-              for (final entry in fbComp.componentEntries) {
+              /* for (final entry in fbComp.permissionEntries) {
                 if (svc['version'] == '*' || entry.version == svc['version']) {
                   if (await File(entry.path).exists()) {
                     return OrcaResult(statusCode: 200);
@@ -812,11 +782,11 @@ class OrcaCore {
                       "Service named 'firebase' (v${svc['version']}) required by app, but user does not have a matching version specified in the orca_configs.json. Try downloading the Firebase SDK and adding it to the orca_configs.json file.",
                   exceptionLevel: ExceptionLevel.error,
                 ),
-              );
+              ); */
             }
           }
         }
-        for (final engComp in orcaConfigs.engines) {
+        for (final engComp in engines.values) {
           if (engineVersion == '*' || engComp.version == engineVersion) {
             return OrcaResult(statusCode: 200);
           } else {
@@ -836,7 +806,7 @@ class OrcaCore {
           statusCode: 404,
           exception: OrcaException(
             message:
-                "App with name '$appName' could not be found at path '${appComponent.path}'.",
+                "App with name '$appName' could not be found at path '${app.path}'.",
             exceptionLevel: ExceptionLevel.error,
           ),
         );
