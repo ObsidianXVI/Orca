@@ -43,7 +43,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
@@ -68,7 +68,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String source = getParam<String>('source')!;
@@ -116,7 +116,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String name = getParam<String>('name')!;
@@ -145,7 +145,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
@@ -175,11 +175,41 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
-                // Implementation for engine creation
-                return HttpStatus.ok;
+                final EngineComponent engine = EngineComponent(
+                    version: getParam('version'), path: getParam('source'));
+                try {
+                  if (engines.containsKey(engine.id)) {
+                    return raise(HttpStatus.conflict,
+                        'The engine configuration already exists.');
+                  } else {
+                    // test to see if the engine exists and works
+                    final ProcessResult result = await Process.run(
+                      engine.path,
+                      ['doctor'],
+                    );
+                    if ((result.stdout as String)
+                        .split('\n')
+                        .first
+                        .startsWith('Doctor summary')) {
+                      engines.put(engine.id, engine);
+                      return HttpStatus.ok;
+                    } else {
+                      return raise(HttpStatus.unprocessableEntity,
+                          'The provided path does not point to a valid/working Flutter engine.');
+                    }
+                  }
+                } catch (e, st) {
+                  print(e);
+                  print(st);
+
+                  throw OrcaException(
+                      message: e.toString(),
+                      exceptionLevel: ExceptionLevel.error,
+                      payload: st);
+                }
               },
               requiresAuth: false,
             ),
@@ -197,7 +227,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
@@ -227,7 +257,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String name = getParam<String>('name')!;
@@ -255,7 +285,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 writeBody(jsonEncode({
@@ -290,7 +320,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
@@ -327,7 +357,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
@@ -357,7 +387,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
@@ -393,7 +423,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
@@ -422,7 +452,7 @@ class OrcaCore {
               bodyParameters: null,
               handleRequest: ({
                 required T? Function<T>(String paramName) getParam,
-                required void Function(int, String) raise,
+                required int Function(int, String) raise,
                 required void Function(String) writeBody,
               }) async {
                 final String appName = getParam<String>('appName')!;
@@ -461,10 +491,6 @@ class OrcaCore {
       deinit();
     });
 
-    apps = await Hive.openBox<OrcaSpec>('apps', path: './');
-    services = await Hive.openBox<ServiceComponent>('services', path: './');
-    engines = await Hive.openBox<EngineComponent>('engines', path: './');
-    runtimes = await Hive.openBox<OrcaRuntime>('runtimes', path: './');
     Hive
       ..registerAdapter(OrcaSpecAdapter())
       ..registerAdapter(EngineComponentAdapter())
@@ -472,7 +498,13 @@ class OrcaCore {
       ..registerAdapter(ServicePermissionEntryAdapter())
       ..registerAdapter(OrcaRuntimeAdapter());
 
+    apps = await Hive.openBox<OrcaSpec>('apps', path: './');
+    services = await Hive.openBox<ServiceComponent>('services', path: './');
+    engines = await Hive.openBox<EngineComponent>('engines', path: './');
+    runtimes = await Hive.openBox<OrcaRuntime>('runtimes', path: './');
+
     server = await HttpServer.bind(InternetAddress.anyIPv4, 8082);
+    await engines.clear();
     print(
         "Server listening on ${Uri(scheme: 'http', host: server.address.host, port: server.port)}");
     try {
@@ -492,10 +524,6 @@ class OrcaCore {
                 }),
               );
           }
-        } else {
-          req.response
-            ..headers.set('Access-Control-Allow-Origin', '*')
-            ..statusCode = 200;
         }
         await req.response.close();
       });
