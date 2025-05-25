@@ -20,9 +20,36 @@ class EnginesViewState extends State<EnginesView> {
             title: const Text('Engines'),
             actions: [
               TextButton(
-                onPressed: () {
-                  showDialog(
-                      context: context, builder: (ctx) => addAppDialog(ctx));
+                onPressed: () async {
+                  final Map<String, String>? res = await showDialog(
+                      context: context, builder: (ctx) => addEngineDialog(ctx));
+                  if (context.mounted) {
+                    if (res != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Verifying given engine path..."),
+                        ),
+                      );
+                      // call API
+                      final apiRes = await OrcaAPI.orcaApiEnginesCreate.post(
+                          queryParameters: (
+                            source: res['enginePath']!,
+                            version: '*'
+                          ));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: apiRes.statusCode == HttpStatus.ok
+                                ? const Text('Engine added successfully!')
+                                : const Text('Engine registration failed!')));
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Action aborted"),
+                        ),
+                      );
+                    }
+                  }
                 },
                 child: const Text('Add engine'),
               ),
@@ -67,12 +94,13 @@ class EnginesViewState extends State<EnginesView> {
     );
   }
 
-  SimpleDialog addAppDialog(BuildContext context) {
+  SimpleDialog addEngineDialog(BuildContext context) {
+    final TextEditingController enginePathController = TextEditingController();
     return SimpleDialog(
       title: const Text('Add Engine'),
       children: [
         TextField(
-          controller: addAppTextController,
+          controller: enginePathController,
           decoration: const InputDecoration(
             labelText: 'Path to directory of Flutter SDK',
           ),
@@ -80,10 +108,8 @@ class EnginesViewState extends State<EnginesView> {
         const SizedBox(height: 10),
         TextButton(
           onPressed: () async {
-            final bool valid = true;
-            if (valid) {
-              Navigator.of(context).pop();
-            }
+            Navigator.of(context)
+                .pop({'enginePath': enginePathController.text});
           },
           child: const Text(
             'Save',
