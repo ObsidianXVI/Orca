@@ -8,6 +8,7 @@ class OrcaAPI {
   static final orcaApiAppsList = OrcaApiAppsListEndpoint();
   static final orcaApiAppsCreate = OrcaApiAppsCreateEndpoint();
   static final orcaApiAppsDelete = OrcaApiAppsDeleteEndpoint();
+  static final orcaApiAppsUpdate = OrcaApiAppsUpdateEndpoint();
   static final orcaApiEnginesList = OrcaApiEnginesListEndpoint();
   static final orcaApiEnginesCreate = OrcaApiEnginesCreateEndpoint();
   static final orcaApiServicesList = OrcaApiServicesListEndpoint();
@@ -74,6 +75,36 @@ class OrcaApiAppsDeleteEndpoint {
         },
       ),
     );
+  }
+}
+
+class OrcaApiAppsUpdateEndpoint {
+  Future<OrcaSpec> post({
+    required ({
+      String appName,
+      String source,
+    }) queryParameters,
+  }) async {
+    final res = jsonDecode((await OrcaAPI.client.post(
+      Uri.http(
+        'localhost:8082',
+        'orca-api/apps/update',
+        {
+          'appName': queryParameters.appName,
+          'source': queryParameters.source,
+        },
+      ),
+    ))
+        .body);
+    try {
+      return OrcaSpec.fromJson(res);
+    } on TypeError catch (e, st) {
+      throw OrcaException(
+        message: 'App update failed.',
+        exceptionLevel: ExceptionLevel.error,
+        payload: res,
+      );
+    }
   }
 }
 

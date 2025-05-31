@@ -15,7 +15,7 @@ class DashboardViewState extends State<DashboardView> {
     return FutureBuilder(
       future: OrcaApiAppsListEndpoint().get(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done) {
+        return snapshot.standardHandler(() {
           currentAppComponent ??= snapshot.requireData.payload.firstOrNull;
           return Scaffold(
             appBar: AppBar(
@@ -266,13 +266,7 @@ class DashboardViewState extends State<DashboardView> {
                   )
                 : const SizedBox(),
           );
-        } else {
-          return const SizedBox(
-            height: 50,
-            width: 50,
-            child: CircularProgressIndicator(),
-          );
-        }
+        });
       },
     );
   }

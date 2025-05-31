@@ -15,12 +15,15 @@ part './ui/text_theme.dart';
 part './ui/runtime_window.dart';
 
 part './views/apps_view.dart';
+part './views/app_details_view.dart';
 part './views/engines_view.dart';
 part './views/services_view.dart';
 part './views/dashboard_view.dart';
 part './views/runtimes_view.dart';
 
 part './forms/runtime_create.dart';
+
+part './utils/utils.dart';
 
 part './orca_api_client.g.dart';
 
@@ -40,19 +43,34 @@ class OrcaAppState extends State<OrcaApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: OrcaColorSchme.colorSchemeDark,
-          textButtonTheme: OrcaButtonStyle.textButtonStyle,
-          cardTheme: CardTheme(surfaceTintColor: OrcaColorSchme.lightPurple)),
-      routes: {
-        '/': (context) => const DashboardView(),
-        '/apps': (_) => const AppsView(),
-        '/engines': (_) => const EnginesView(),
-        '/services': (_) => const ServicesView(),
-        '/runtimes': (_) => const RuntimesView(),
+    return FutureBuilder(
+      future: OrcaAPI.orcaApiAppsList.get(),
+      builder: (builder, snapshot) {
+        return snapshot.standardHandler(
+          () => MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+                useMaterial3: true,
+                colorScheme: OrcaColorSchme.colorSchemeDark,
+                textButtonTheme: OrcaButtonStyle.textButtonStyle,
+                cardTheme:
+                    CardTheme(surfaceTintColor: OrcaColorSchme.lightPurple)),
+            routes: {
+              '/': (context) => const DashboardView(),
+              '/apps': (_) => const AppsView(),
+              '/engines': (_) => const EnginesView(),
+              '/services': (_) => const ServicesView(),
+              '/runtimes': (_) => const RuntimesView(),
+              ...{
+                for (final orcaspec in snapshot.data!.payload)
+                  '/apps/${orcaspec.appName.urlSafeSlug}': (_) =>
+                      AppDetailsView(
+                        orcaSpec: orcaspec,
+                      ),
+              }
+            },
+          ),
+        );
       },
     );
   }

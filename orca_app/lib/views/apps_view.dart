@@ -46,13 +46,30 @@ class AppsViewState extends State<AppsView> {
                           width: 400,
                           height: 100,
                           color: Theme.of(context).cardTheme.surfaceTintColor,
-                          child: Align(
-                            alignment: Alignment.topLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child:
-                                  Text(snapshot.requireData.payload[i].appName),
-                            ),
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                top: 12,
+                                left: 12,
+                                child: Text(
+                                    snapshot.requireData.payload[i].appName),
+                              ),
+                              Positioned(
+                                right: 12,
+                                top: 12,
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pushNamed(
+                                            '/apps/${snapshot.requireData.payload[i].appName.urlSafeSlug}');
+                                      },
+                                      icon: const Icon(Icons.settings),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
