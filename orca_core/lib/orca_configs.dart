@@ -1,18 +1,8 @@
 part of orca_core;
 
-/// A configuration component that is available on the user's side. The [id] property
-/// is used when the components are stored in hive as key-value pairs.
-abstract class OrcaStorable {
-  const OrcaStorable();
-
-  String get id;
-
-  JSON toJson();
-}
-
 /// The component of the orcaspec that specifies the app's requirements
 @HiveType(typeId: 0)
-class OrcaSpec extends OrcaStorable {
+class OrcaSpec extends HiveObject {
   /// The app's display name.
   @HiveField(0)
   final String appName;
@@ -29,10 +19,9 @@ class OrcaSpec extends OrcaStorable {
   @HiveField(3)
   final List<ServiceComponent> services;
 
-  @override
   String get id => appName;
 
-  const OrcaSpec({
+  OrcaSpec({
     required this.appName,
     required this.path,
     required this.engine,
@@ -41,7 +30,6 @@ class OrcaSpec extends OrcaStorable {
 
   static OrcaSpec fromJson(JSON jsonConfigs) {
     final String appName = jsonConfigs['name'];
-    final String path = jsonConfigs['path'];
     final String engine = jsonConfigs['engine'];
     final List<ServiceComponent> services = [];
     for (int i = 0; i < jsonConfigs['services'].length; i++) {
@@ -49,13 +37,12 @@ class OrcaSpec extends OrcaStorable {
     }
     return OrcaSpec(
       appName: appName,
-      path: path,
+      path: jsonConfigs.containsKey('path') ? jsonConfigs['path'] : '<NULL>',
       engine: engine,
       services: services,
     );
   }
 
-  @override
   JSON toJson() => {
         'name': appName,
         'path': path,
@@ -72,13 +59,13 @@ class OrcaSpec extends OrcaStorable {
 }
 
 @HiveType(typeId: 2)
-class EngineComponent extends OrcaStorable {
+class EngineComponent extends HiveObject {
   @HiveField(0)
   final String version;
   @HiveField(1)
   final String path;
 
-  const EngineComponent({
+  EngineComponent({
     required this.version,
     required this.path,
   });
@@ -87,10 +74,8 @@ class EngineComponent extends OrcaStorable {
       : version = jsonConfigs['version'],
         path = jsonConfigs['path'];
 
-  @override
   String get id => 'engine-$version--$path';
 
-  @override
   JSON toJson() => {
         'version': version,
         'path': path,
@@ -98,7 +83,7 @@ class EngineComponent extends OrcaStorable {
 }
 
 @HiveType(typeId: 1)
-class ServiceComponent extends OrcaStorable {
+class ServiceComponent extends HiveObject {
   @HiveField(0)
   final String name;
   @HiveField(1)
@@ -106,20 +91,19 @@ class ServiceComponent extends OrcaStorable {
   @HiveField(2)
   final List<ServicePermissionEntry> permissionEntries;
 
-  const ServiceComponent({
+  ServiceComponent({
     required this.name,
     required this.version,
     required this.permissionEntries,
   });
 
   static ServiceComponent fromJson(JSON jsonConfigs) {
-    print(jsonConfigs);
     final String name = jsonConfigs['name'];
     final String version = jsonConfigs['version'];
     final List<ServicePermissionEntry> permissions = [];
-    for (int i = 0; i < jsonConfigs['permissions'].length; i++) {
+    /* for (int i = 0; i < jsonConfigs['permissions'].length; i++) {
       permissions.add(ServicePermissionEntry(jsonConfigs['permissions'][i]));
-    }
+    } */
     return ServiceComponent(
       name: name,
       version: version,
@@ -127,10 +111,8 @@ class ServiceComponent extends OrcaStorable {
     );
   }
 
-  @override
   String get id => '$name-$version';
 
-  @override
   JSON toJson() => {
         'name': name,
         'version': version,

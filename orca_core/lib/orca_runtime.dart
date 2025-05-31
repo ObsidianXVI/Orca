@@ -1,7 +1,7 @@
 part of orca_core;
 
 @HiveType(typeId: 3)
-class OrcaRuntime extends OrcaStorable {
+class OrcaRuntime extends HiveObject {
   @HiveField(0)
   final OrcaSpec orcaSpec;
   @HiveField(1)
@@ -25,7 +25,6 @@ class OrcaRuntime extends OrcaStorable {
     required this.services,
   });
 
-  @override
   String get id =>
       '$appName-$engineVersion-${DateTime.now().millisecondsSinceEpoch}';
 
