@@ -1,18 +1,20 @@
 library orca_core;
 
-import 'dart:convert';
-import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:path/path.dart' as path;
 import 'package:hive/hive.dart';
-
+import 'package:http_apis_secure/secure.dart' as secure;
 import 'package:http_apis_define/http_apis.dart';
+
+import 'dart:convert';
+import 'dart:io';
 
 part 'orca.g.dart';
 part './orca_configs.dart';
 part './orca_runtime.dart';
 part './exceptions.dart';
 part './result.dart';
+part './battery_services/orca_fs.dart';
 
 typedef JSON = Map<String, dynamic>;
 
@@ -26,7 +28,7 @@ class OrcaCore {
   static late Box<ServiceComponent> services;
   static late Box<EngineComponent> engines;
   static late Box<OrcaRuntime> runtimes;
-  static late Box<Map<String, dynamic>> configs;
+  static late Box<String> keys;
   static late final HttpServer server;
   static final Map<String, Process> processes = {};
   static final API api = API(
@@ -38,6 +40,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'list',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.get],
               queryParameters: [],
               bodyParameters: null,
@@ -57,6 +60,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'create',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param<String, String>.required(
@@ -87,6 +91,7 @@ class OrcaCore {
                 );
                 if (res != null) {
                   apps.put(res.id, res);
+                  keys.put(res.id, secure.generateKey().base64);
                   writeBody(jsonEncode(res.toJson()));
                   code = HttpStatus.ok;
                 }
@@ -98,6 +103,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'delete',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param<String, String>.required(
@@ -115,6 +121,7 @@ class OrcaCore {
                 final String name = getParam<String>('name')!;
                 if (apps.containsKey(name)) {
                   apps.delete(name);
+                  keys.delete(name);
                   return HttpStatus.ok;
                 } else {
                   raise(HttpStatus.notFound,
@@ -128,6 +135,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'update',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param.required(
@@ -191,6 +199,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'list',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.get],
               queryParameters: [],
               bodyParameters: null,
@@ -210,6 +219,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'create',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param<String, String>.required(
@@ -273,6 +283,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'list',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.get],
               queryParameters: [],
               bodyParameters: null,
@@ -292,6 +303,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'create',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param<String, String>.required(
@@ -331,6 +343,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'list',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.get],
               queryParameters: [],
               bodyParameters: null,
@@ -350,6 +363,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'create',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param<String, String>.required(
@@ -377,7 +391,9 @@ class OrcaCore {
                   engineVersion: engineVersion,
                   services: [],
                 );
-                final Process? proc = await runtime.spawn();
+                final Process? proc = await runtime.spawn(
+                  encodedKey: keys.get(appName)!,
+                );
                 if (proc == null) {
                   raise(HttpStatus.badRequest, 'Runtime creation failed.');
                   return HttpStatus.badRequest;
@@ -392,6 +408,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'get',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.get],
               queryParameters: [
                 Param<String, String>.required(
@@ -422,6 +439,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'delete',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param<String, String>.required(
@@ -458,6 +476,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'get',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.get],
               queryParameters: [
                 Param<String, String>.required(
@@ -487,6 +506,7 @@ class OrcaCore {
           RouteSegment.endpoint(
             routeName: 'setup',
             endpoint: Endpoint(
+              authModel: AuthModel.classic_sym,
               endpointTypes: [EndpointType.post],
               queryParameters: [
                 Param<String, String>.required(

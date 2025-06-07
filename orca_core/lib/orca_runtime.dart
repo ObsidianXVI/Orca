@@ -42,12 +42,14 @@ class OrcaRuntime extends HiveObject {
     required String procId,
     required List<String> cmd,
     String? workingDir,
+    Map<String, String>? envVars,
   }) async {
     subprocLogs[procId] = [];
     final Process subproc = await Process.start(
       cmd[0],
       cmd.sublist(1),
       workingDirectory: workingDir,
+      environment: envVars,
     )
       ..stdout
           .transform(utf8.decoder)
@@ -56,7 +58,9 @@ class OrcaRuntime extends HiveObject {
     return subprocesses[procId] = subproc;
   }
 
-  Future<Process?> spawn() async {
+  Future<Process?> spawn({
+    required String encodedKey,
+  }) async {
     /* if (orcaSpec == null) {
       logs.add("🐋 Could not find app with specified name '$appName'");
       return null;
@@ -73,6 +77,7 @@ class OrcaRuntime extends HiveObject {
             cmd: ['firebase', 'emulators:start', ...svc['startOptions']],
             workingDir:
                 path.normalize("${orcaSpec.path}/${svc['databaseRootDir']}"),
+            envVars: {'ORCA_APP_KEY': encodedKey},
           );
 
           logs.add("🐋 Successfully provisioned subprocess!");
