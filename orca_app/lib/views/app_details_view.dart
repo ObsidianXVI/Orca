@@ -61,8 +61,8 @@ class AppDetailsView extends StatelessWidget {
             child: const Text('Update'),
           ),
           TextButton(
-            onPressed: () {
-              OrcaAPI.orcaApiAppsDelete
+            onPressed: () async {
+              await OrcaAPI.orcaApiAppsDelete
                   .delete(queryParameters: (name: orcaSpec.appName));
             },
             child: const Text('Delete'),

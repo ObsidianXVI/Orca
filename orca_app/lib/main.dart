@@ -43,35 +43,38 @@ class OrcaAppState extends State<OrcaApp> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: OrcaAPI.orcaApiAppsList.get(),
-      builder: (builder, snapshot) {
-        return snapshot.standardHandler(
-          () => MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-                useMaterial3: true,
-                colorScheme: OrcaColorSchme.colorSchemeDark,
-                textButtonTheme: OrcaButtonStyle.textButtonStyle,
-                cardTheme:
-                    CardTheme(surfaceTintColor: OrcaColorSchme.lightPurple)),
-            routes: {
-              '/': (context) => const DashboardView(),
-              '/apps': (_) => const AppsView(),
-              '/engines': (_) => const EnginesView(),
-              '/services': (_) => const ServicesView(),
-              '/runtimes': (_) => const RuntimesView(),
-              ...{
-                for (final orcaspec in snapshot.data!.payload)
-                  '/apps/${orcaspec.appName.urlSafeSlug}': (_) =>
-                      AppDetailsView(
-                        orcaSpec: orcaspec,
-                      ),
-              }
-            },
-          ),
-        );
-      },
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: FutureBuilder(
+        future: OrcaAPI.orcaApiAppsList.get(),
+        builder: (builder, snapshot) {
+          return snapshot.standardHandler(
+            () => MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData(
+                  useMaterial3: true,
+                  colorScheme: OrcaColorSchme.colorSchemeDark,
+                  textButtonTheme: OrcaButtonStyle.textButtonStyle,
+                  cardTheme:
+                      CardTheme(surfaceTintColor: OrcaColorSchme.lightPurple)),
+              routes: {
+                '/': (context) => const DashboardView(),
+                '/apps': (_) => const AppsView(),
+                '/engines': (_) => const EnginesView(),
+                '/services': (_) => const ServicesView(),
+                '/runtimes': (_) => const RuntimesView(),
+                ...{
+                  for (final orcaspec in snapshot.data!.payload)
+                    '/apps/${orcaspec.appName.urlSafeSlug}': (_) =>
+                        AppDetailsView(
+                          orcaSpec: orcaspec,
+                        ),
+                }
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

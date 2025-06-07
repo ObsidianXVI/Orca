@@ -14,7 +14,6 @@ part './orca_configs.dart';
 part './orca_runtime.dart';
 part './exceptions.dart';
 part './result.dart';
-part './battery_services/orca_fs.dart';
 
 typedef JSON = Map<String, dynamic>;
 
@@ -551,6 +550,52 @@ class OrcaCore {
     ],
   );
 
+  static final API orcaServicesApi = API(
+    apiName: 'orca-services',
+    routes: [
+      RouteSegment.routes(
+        routeName: 'files',
+        routes: [
+          RouteSegment.endpoint(
+            routeName: 'list',
+            endpoint: Endpoint(
+              endpointTypes: [EndpointType.post],
+              queryParameters: const [],
+              bodyParameters: [
+                Param.required(
+                  'dir',
+                  desc: 'The directory path whose files need to be listed out.',
+                  cast: (obj) => obj as String,
+                ),
+              ],
+              handleRequest: ({
+                required T? Function<T>(String paramName) getParam,
+                required int Function(int, String) raise,
+                required void Function(String) writeBody,
+              }) async {
+                writeBody(secure.encryptPayload(
+                  secure.Key.fromBase64(
+                      keys.get(getParam(ClassicSymParams.uid.name))!),
+                  {
+                    'payload': [
+                      await for (final entity
+                          in Directory(getParam('dir')!).list())
+                        if (entity is File)
+                          base64Encode(await entity.readAsBytes())
+                    ],
+                  },
+                ));
+                return HttpStatus.ok;
+              },
+              requiresAuth: true,
+              authModel: AuthModel.classic_sym,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+
   static Future<void> init() async {
     ProcessSignal.sigint.watch().listen((signal) {
       print("SIGINT detected, gracefully shutting down daemon...");
@@ -568,7 +613,7 @@ class OrcaCore {
     services = await Hive.openBox<ServiceComponent>('services', path: './');
     engines = await Hive.openBox<EngineComponent>('engines', path: './');
     runtimes = await Hive.openBox<OrcaRuntime>('runtimes', path: './');
-
+    keys = await Hive.openBox<String>('keys', path: './');
     server = await HttpServer.bind(InternetAddress.anyIPv4, 8082);
 
     print(
@@ -578,7 +623,13 @@ class OrcaCore {
         if (req.uri.pathSegments.length > 1) {
           req.response.headers.set('Access-Control-Allow-Origin', '*');
           try {
-            await api.handleRequest(req, pathSegmentOffset: 1);
+            switch (req.uri.pathSegments[0]) {
+              case 'orca-api':
+                await api.handleRequest(req, pathSegmentOffset: 1);
+                break;
+              case 'orca-services':
+                await orcaServicesApi.handleRequest(req, pathSegmentOffset: 1);
+            }
           } on OrcaException catch (e) {
             req.response
               ..statusCode = 400
